@@ -2,6 +2,7 @@ from models.events import EventType, BaseEvent
 from models.messages import TelegramMessage
 from .base_handler import BaseHandler
 from graphs.admin_graph import create_admin_graph
+from utils import send_telegram_message_async
 
 
 class AdminMessageHandler(BaseHandler):
@@ -18,7 +19,10 @@ class AdminMessageHandler(BaseHandler):
     async def handle(self, event: BaseEvent):
         if self._is_admin_message(event):
             message = TelegramMessage.model_validate(event.data)
-            await self._process_admin_command(message)
+            response = await self._process_admin_command(message)
+
+            # send response back to the admin
+            await send_telegram_message_async(message.chat_id, response)
 
     def _is_admin_message(self, event):
         # Implement admin check logic
@@ -30,6 +34,5 @@ class AdminMessageHandler(BaseHandler):
             "message": message.text
         })
         
-        print(f"Admin command processed: {state['response']}")
-        
-        
+        return state['response']
+

@@ -53,7 +53,7 @@ async def interpret_message(state: State):
 async def research_task(state: State):
     """Handle research-type requests with deep analysis"""
     response = await executor_llm.ainvoke([
-        SystemMessage(content="You are a thorough researcher. Analyze the request and provide detailed information."),
+        SystemMessage(content="You are a thorough DeFi researcher. Analyze the request and provide important information."),
         HumanMessage(content=f"Research request: {state['description']}")
     ])
     
