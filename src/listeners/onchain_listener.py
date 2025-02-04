@@ -13,7 +13,7 @@ class OnChainListener(Listener):
         self.web3 = None
     
     async def start(self):
-        print(f"Starting onchain listener with RPC URL: {Config.CHAIN_RPC_URL}")
+        print(f"Starting onchain listener:")
         self.web3 = Web3(Web3.HTTPProvider(Config.CHAIN_RPC_URL))
         asyncio.create_task(self._poll_loop())
     

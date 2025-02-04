@@ -12,3 +12,4 @@ tiktoken>=0.5.2
 web3>=7.7.0
 eth-abi>=5.0.0
 cdp-langchain>=0.0.13
+pydantic>=2.0.0
