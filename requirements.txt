@@ -1,0 +1,14 @@
+langchain-community>=0.3.10
+langchain>=0.3.10
+langchain-anthropic>=0.3.0
+langchain-openai>=0.2.4
+langgraph>=0.2.65
+langgraph-checkpoint-sqlite>=2.0.0
+python-dotenv>=1.0.0
+python-telegram-bot>=20.7
+faiss-cpu>=1.7.4
+chromadb>=0.4.22
+tiktoken>=0.5.2
+web3>=7.7.0
+eth-abi>=5.0.0
+cdp-langchain>=0.0.13
