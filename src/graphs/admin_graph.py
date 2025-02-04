@@ -18,6 +18,8 @@ class State(TypedDict):
     intent: Literal["research", "action"]
     description: str
     
+    # Todo: Add more states here for different nodes to share data, for example building transactions.
+
     # Final output
     response: str
 
@@ -65,6 +67,8 @@ async def action_task(state: State):
         SystemMessage(content="You are an action executor. Explain what actions you would take."),
         HumanMessage(content=f"Action request: {state['description']}")
     ])
+
+    # todo: execute the transaction, simulations... etc, or -- connect to another graph!
     
     return {"response": response.content}
 
