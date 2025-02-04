@@ -12,4 +12,4 @@ class EventBus:
     async def publish(self, event_type: str, data: Any = None):
         if event_type in self.subscribers:
             for callback in self.subscribers[event_type]:
-                await callback(data) 
+                await callback(data)
