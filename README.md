@@ -19,3 +19,17 @@ M1 Vault Agent is an autonomous agent designed to manage Morpho Protocol vaults 
 
 ## Architecture
 See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details
+
+## Running the project
+
+1. Install environment and dependencies
+
+```
+pip install -r requirements.txt
+```
+
+2. Initialize some knowledge into local vector store
+
+```
+python scripts/init_morpho_knowledge.py
+```
