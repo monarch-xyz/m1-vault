@@ -4,6 +4,11 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel
 from config import Config
+from utils import VectorStoreManager
+
+# Initialize the vector store
+# Todo: use different vector store for different types of knowledges
+morpho_knowledge_store = VectorStoreManager("data/morpho_knowledge")
 
 # Define our models
 class InterpretResult(BaseModel):
@@ -54,8 +59,13 @@ async def interpret_message(state: State):
 
 async def research_task(state: State):
     """Handle research-type requests with deep analysis"""
+
+    context = await morpho_knowledge_store.get_context(state["description"], k=5)
+
     response = await executor_llm.ainvoke([
-        SystemMessage(content="You are a thorough DeFi researcher. Analyze the request and provide important information."),
+        SystemMessage(
+            content=f"You are a thorough DeFi researcher. Analyze the request and provide important information. \n\n Context: {context}"
+        ),
         HumanMessage(content=f"Research request: {state['description']}")
     ])
     

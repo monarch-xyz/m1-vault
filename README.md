@@ -33,3 +33,10 @@ pip install -r requirements.txt
 ```
 python scripts/init_morpho_knowledge.py
 ```
+
+3. Run the Agent
+
+```
+python src/main.py
+```
+
