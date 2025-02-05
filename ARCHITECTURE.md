@@ -21,7 +21,7 @@ Each listener has to listen to events, and categorize them into the following ty
 
 ### 2. Event Handlers
 
-For each type of event, we have a dedicated handler. This is a simple component that will take an event, link to a graph, execute it, and respone according to event type.
+For each type of event, we have a dedicated handler. This is a simple component that will take an event, link to a graph, execute it, and respond according to event type.
 
 - **AdminMessageHandler**: Handles admin commands / questions
 - **UserMessageHandler**: Handles messages from vault depositors

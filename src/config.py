@@ -8,3 +8,4 @@ class Config:
     CHAIN_RPC_URL = os.getenv("RPC_URL")
     POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 60))
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
