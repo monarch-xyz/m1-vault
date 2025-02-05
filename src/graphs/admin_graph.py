@@ -1,6 +1,7 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Literal
 from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel
 from config import Config
@@ -33,16 +34,28 @@ class State(TypedDict):
     # Final output
     response: str
 
-# Initialize LLMs - using different models for different purposes
-interpreter_llm = ChatAnthropic(
-    model="claude-3-5-haiku-20241022",
-    api_key=Config.ANTHROPIC_API_KEY
-)
+# Define model options
+ModelType = Literal["anthropic", "openai"]
 
-executor_llm = ChatAnthropic(
-    model="claude-3-5-sonnet-20241022",
-    api_key=Config.ANTHROPIC_API_KEY
-)
+# Get LLM instance based on type and purpose
+def get_llm(model_type: ModelType, is_interpreter: bool = False):
+    """Get LLM instance based on type and purpose"""
+    if (model_type == "anthropic"):
+        model = "claude-3-5-haiku-20241022" if is_interpreter else "claude-3-5-sonnet-20241022"
+        return ChatAnthropic(
+            model=model,
+            api_key=Config.ANTHROPIC_API_KEY
+        )
+    else:
+        model = "gpt-4o-mini" if is_interpreter else "gpt-4o-2024-11-20"
+        return ChatOpenAI(
+            model=model,
+            api_key=Config.OPENAI_API_KEY
+        )
+
+# Initialize LLMs with configurable model type
+interpreter_llm = get_llm(Config.MODEL_TYPE, is_interpreter=True)
+executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 
 async def interpret_message(state: State):
     """First node: Interpret the admin message and decide if it needs research or action"""

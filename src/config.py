@@ -9,3 +9,4 @@ class Config:
     POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 60))
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    MODEL_TYPE = os.getenv("MODEL_TYPE", "anthropic")
