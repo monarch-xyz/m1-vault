@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from config import Config
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from utils import VectorStoreManager, setup_cdp_toolkit
 
 # Initialize the vector store
 # Todo: use different vector store for different types of knowledges
@@ -51,7 +52,7 @@ def get_llm(model_type: ModelType, is_interpreter: bool = False):
         return ChatOpenAI(
             model=model,
             api_key=Config.OPENAI_API_KEY
-        )
+        ).bind_tools(setup_cdp_toolkit())
 
 # Initialize LLMs with configurable model type
 interpreter_llm = get_llm(Config.MODEL_TYPE, is_interpreter=True)
@@ -65,7 +66,8 @@ async def interpret_message(state: State):
         SystemMessage(content="""
         You are an admin command interpreter. Determine if the message requires:
         - research: gathering information or analysis
-        - action: executing on-chain transactions
+        - action: manage wallet and executing on-chain transactions through CDP Agentkit.
+        You have access to CDP Agentkit for managing a wallet and on-chain transactions.
         """),
         HumanMessage(content=state["message"])
     ])
@@ -86,13 +88,12 @@ async def research_task(state: State):
         ),
         HumanMessage(content=f"Research request: {state['description']}")
     ])
-    
     return {"response": response.content}
 
 async def action_task(state: State):
     """Handle action-type requests with precise execution"""
     response = await executor_llm.ainvoke([
-        SystemMessage(content="You are an action executor. Explain what actions you would take."),
+        SystemMessage(content="You are an action executor. Explain what actions you would take and take action."),
         HumanMessage(content=f"Action request: {state['description']}")
     ])
 
@@ -106,7 +107,8 @@ def route_intent(state: State):
 
 def create_admin_graph():
     """Create the admin command processing graph"""
-    
+    # start -> interpret -> [description] -> (research | action) -> [response] -> end
+
     # Initialize graph
     graph = StateGraph(State)
     
@@ -132,4 +134,4 @@ def create_admin_graph():
     graph.add_edge("research", END)
     graph.add_edge("action", END)
     
-    return graph.compile() 
+    return graph.compile()
