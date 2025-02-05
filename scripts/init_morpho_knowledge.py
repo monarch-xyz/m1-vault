@@ -2,17 +2,24 @@ from langchain_community.document_loaders import PyPDFLoader
 import os
 import asyncio
 import sys
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from dotenv import load_dotenv
 
-# Add src directory to sys.path
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+load_dotenv()
 
-from utils import VectorStoreManager
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
+storeage_path = "data/morpho_knowledge"
 
 file_path = "scripts/morpho-docs-dump.pdf"
 
 # Initialize vector store
-vector_store = VectorStoreManager("data/morpho_knowledge")
+knowledge_store = Chroma(
+    collection_name="morpho_knowledge",
+    embedding_function=OpenAIEmbeddings(openai_api_key=openai_api_key),
+    persist_directory=storeage_path,
+)
 
 async def main():
     # Add context
@@ -21,7 +28,7 @@ async def main():
     async for page in loader.alazy_load():
         pages.append(page)
 
-    vector_store.add_documents(pages)
+    knowledge_store.add_documents(pages)
 
 if __name__ == "__main__":
     asyncio.run(main())

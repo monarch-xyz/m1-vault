@@ -14,3 +14,5 @@ eth-abi>=5.0.0
 cdp-langchain>=0.0.13
 pydantic>=2.0.0
 pypdf>=5.2.0
+chromadb>=0.6.3
+langchain-chroma>=0.2.1
