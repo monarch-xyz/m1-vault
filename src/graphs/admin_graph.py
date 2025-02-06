@@ -1,13 +1,20 @@
 from langgraph.graph import StateGraph, START, END
-from typing import TypedDict, Literal
+from typing import TypedDict, Literal, Annotated, Sequence
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
+
+from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from config import Config
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
-from utils import VectorStoreManager, setup_cdp_toolkit
+from utils import setup_cdp_toolkit
+import json
+
+tools = setup_cdp_toolkit()
+tools_by_name = {tool.name: tool for tool in tools}
 
 # Initialize the vector store
 # Todo: use different vector store for different types of knowledges
@@ -23,17 +30,14 @@ class InterpretResult(BaseModel):
     description: str
 
 class State(TypedDict):
-    # Input from handler
-    message: str
+    # All messages, including user initial message.
+    messages: Annotated[Sequence[BaseMessage], add_messages]
     
     # Interpretation results
     intent: Literal["research", "action"]
     description: str
     
     # Todo: Add more states here for different nodes to share data, for example building transactions.
-
-    # Final output
-    response: str
 
 # Define model options
 ModelType = Literal["anthropic", "openai"]
@@ -52,11 +56,12 @@ def get_llm(model_type: ModelType, is_interpreter: bool = False):
         return ChatOpenAI(
             model=model,
             api_key=Config.OPENAI_API_KEY
-        ).bind_tools(setup_cdp_toolkit())
+        )
 
 # Initialize LLMs with configurable model type
 interpreter_llm = get_llm(Config.MODEL_TYPE, is_interpreter=True)
-executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
+
+executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False).bind_tools(tools)
 
 async def interpret_message(state: State):
     """First node: Interpret the admin message and decide if it needs research or action"""
@@ -65,11 +70,11 @@ async def interpret_message(state: State):
     result = router.invoke([
         SystemMessage(content="""
         You are an admin command interpreter. Determine if the message requires:
-        - research: gathering information or analysis
-        - action: manage wallet and executing on-chain transactions through CDP Agentkit.
+        - research: gathering information or analysis about market
+        - action: any action related to CDP, tool use, manage wallet and executing on-chain transactions through CDP Agentkit.
         You have access to CDP Agentkit for managing a wallet and on-chain transactions.
         """),
-        HumanMessage(content=state["message"])
+        *state["messages"]
     ])
     
     return {
@@ -88,7 +93,7 @@ async def research_task(state: State):
         ),
         HumanMessage(content=f"Research request: {state['description']}")
     ])
-    return {"response": response.content}
+    return {"messages": [response]}
 
 async def action_task(state: State):
     """Handle action-type requests with precise execution"""
@@ -97,13 +102,30 @@ async def action_task(state: State):
         HumanMessage(content=f"Action request: {state['description']}")
     ])
 
-    # todo: execute the transaction, simulations... etc, or -- connect to another graph!
-    
-    return {"response": response.content}
+    return {"messages": [response]}
 
 def route_intent(state: State):
     """Route to either research or action based on intent"""
     return state["intent"]
+
+def tool_node(state: State):
+    outputs = []
+    for tool_call in state["messages"][-1].tool_calls:
+        tool_result = tools_by_name[tool_call["name"]].invoke(tool_call["args"])
+        outputs.append(
+            ToolMessage(
+                content=json.dumps(tool_result),
+                name=tool_call["name"],
+                tool_call_id=tool_call["id"],
+            )
+        )
+    return {"messages": outputs}
+
+# Run through model again to get final response
+def call_model(state: State, config: RunnableConfig):
+    response = executor_llm.invoke(state["messages"], config)
+    # We return a list, because this will get added to the existing list
+    return {"messages": [response]}
 
 def create_admin_graph():
     """Create the admin command processing graph"""
@@ -116,6 +138,9 @@ def create_admin_graph():
     graph.add_node("interpret", interpret_message)
     graph.add_node("research", research_task)
     graph.add_node("action", action_task)
+
+    graph.add_node("tool", tool_node)
+    graph.add_node("call_model", call_model)
     
     # Create edges
     graph.add_edge(START, "interpret")
@@ -132,6 +157,8 @@ def create_admin_graph():
     
     # Connect both outcomes to END
     graph.add_edge("research", END)
-    graph.add_edge("action", END)
+    graph.add_edge("action", "tool")
+    graph.add_edge("tool", "call_model")
+    graph.add_edge("call_model", END)
     
     return graph.compile()

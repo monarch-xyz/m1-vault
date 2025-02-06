@@ -2,6 +2,7 @@ from models.events import EventType, BaseEvent
 from models.messages import TelegramMessage
 from .base_handler import BaseHandler
 from graphs.admin_graph import create_admin_graph
+from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 
 
@@ -31,8 +32,8 @@ class AdminMessageHandler(BaseHandler):
     async def _process_admin_command(self, message: TelegramMessage):
         # Process through the graph
         state = await self.graph.ainvoke({
-            "message": message.text
+            "messages": [HumanMessage(content=message.text)]
         })
         
-        return state['response']
+        return state['messages'][-1].content
 
