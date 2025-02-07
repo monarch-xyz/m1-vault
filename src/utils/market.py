@@ -1,0 +1,301 @@
+from langchain_core.tools import tool
+from typing import Dict, List, Optional, Annotated
+from pydantic import BaseModel
+import aiohttp
+import logging
+from enum import Enum
+
+logger = logging.getLogger(__name__)
+
+
+# always use our vault
+VAULT_ADDRESS = "0x346aac1e83239db6a6cb760e95e13258ad3d1a6d"
+
+# GraphQL query
+GET_MARKETS = """
+    query getMarkets($first: Int, $where: MarketFilters) {
+        markets(first: $first, where: $where) {
+            items {
+                id
+                lltv
+                uniqueKey
+                oracleAddress
+                irmAddress
+                loanAsset {
+                    address
+                    symbol
+                    decimals
+                }
+                collateralAsset {
+                    address
+                    symbol
+                    decimals
+                }
+                state {
+                    borrowAssets
+                    supplyAssets
+                    borrowAssetsUsd
+                    supplyAssetsUsd
+                    utilization
+                    supplyApy
+                    borrowApy
+                }
+            }
+        }
+    }
+"""
+
+# Add new GraphQL query
+GET_VAULT = """
+    query getVault($vaultId: String!) {
+        vaultByAddress(address: $vaultId, chainId: 8453) {
+            state {
+                allTimeApy
+                apy
+                totalAssets
+                totalAssetsUsd
+                allocation {
+                    market {
+                        id
+                        uniqueKey
+                        irmAddress
+                        oracleAddress
+                    }
+                    supplyAssets
+                    supplyCap
+                }
+            }
+            asset {
+                id
+                decimals
+            }
+        }
+    }
+"""
+
+MORPHO_API_URL = "https://blue-api.morpho.org/graphql"
+USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"  # USDC on Base
+
+class Asset(BaseModel):
+    """Asset information"""
+    address: str
+    symbol: str
+    decimals: int
+
+class MarketState(BaseModel):
+    """Market state information"""
+    borrowAssets: int
+    supplyAssets: int
+    borrowAssetsUsd: float
+    supplyAssetsUsd: float
+    utilization: float
+    supplyApy: float
+    borrowApy: float
+
+class Market(BaseModel):
+    """Market information"""
+    id: str
+    lltv: float
+    uniqueKey: str
+    irmAddress: str
+    oracleAddress: str
+    loanAsset: Asset
+    collateralAsset: Asset | None
+    state: MarketState
+
+class MarketResponse(BaseModel):
+    """Response from market query"""
+    items: List[Market]
+
+class MarketAllocation(BaseModel):
+    """Market allocation information"""
+    market: Dict[str, str]  # Contains id and uniqueKey
+    supplyAssets: int  # Changed from str to int
+    supplyCap: int    # Changed from str to int
+
+class VaultState(BaseModel):
+    """Vault state information"""
+    allTimeApy: float
+    apy: float
+    totalAssets: int  # Changed from str to int
+    totalAssetsUsd: float
+    allocation: List[MarketAllocation]
+
+class VaultAsset(BaseModel):
+    """Vault asset information"""
+    id: str
+    decimals: int
+
+class VaultResponse(BaseModel):
+    """Response from vault query"""
+    state: VaultState
+    asset: VaultAsset
+
+async def get_morpho_markets() -> List[Market]:
+    """Fetch all USDC markets from Morpho"""
+    async with aiohttp.ClientSession() as session:
+        try:
+            variables = {
+                "first": 100,
+                "where": {
+                    "loanAssetAddress_in": [USDC_ADDRESS],
+                    "whitelisted": True
+                }
+            }
+            
+            async with session.post(
+                MORPHO_API_URL,
+                json={
+                    "query": GET_MARKETS,
+                    "variables": variables
+                }
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                
+                if "errors" in data:
+                    raise Exception(f"GraphQL errors: {data['errors']}")
+                
+                markets = MarketResponse(
+                    items=[Market(**m) for m in data["data"]["markets"]["items"]]
+                ).items
+                
+                return [m for m in markets if m.collateralAsset is not None]
+                
+        except Exception as e:
+            logger.error(f"Error fetching Morpho markets: {str(e)}", exc_info=True)
+            raise
+
+@tool
+async def fetch_all_morpho_markets() -> str:
+    """
+    Fetch all USDC markets from Morpho Blue protocol.
+    
+    Args:
+        min_tvl: Optional minimum TVL to filter markets
+        
+    Returns:
+        str: Formatted market information
+    """
+    try:
+        markets = await get_morpho_markets()
+        
+        # Format response
+        response = ["Available Morpho Markets:"]
+        for market in markets:
+            response.append(
+                f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol}"
+                f"\n  TVL: ${market.state.supplyAssetsUsd:,.2f}"
+                f"\n  Utilization: {market.state.utilization * 100:.1f}%"
+                f"\n  Supply APY: {market.state.supplyApy * 100:.2f}%"
+                f"\n  Borrow APY: {market.state.borrowApy * 100:.2f}%"
+            )
+        
+        return "\n".join(response)
+        
+    except Exception as e:
+        return f"Error fetching markets: {str(e)}"
+
+@tool
+async def fetch_vault_market_status() -> str:
+    """
+    Fetch the market status for a specific Morpho vault.
+  
+        
+    Returns:
+        str: Formatted analysis of markets
+    """
+
+    try:
+        # Fetch vault data
+        async with aiohttp.ClientSession() as session:
+            variables = {"vaultId": VAULT_ADDRESS}
+            async with session.post(
+                MORPHO_API_URL,
+                json={
+                    "query": GET_VAULT,
+                    "variables": variables
+                }
+            ) as response:
+                response.raise_for_status()
+                vault_data = await response.json()
+                if "errors" in vault_data:
+                    raise Exception(f"GraphQL errors: {vault_data['errors']}")
+                
+                vault = VaultResponse(**vault_data["data"]["vaultByAddress"])
+
+        # Fetch all markets
+        markets = await get_morpho_markets()
+        
+        # Create set of approved market IDs
+        approved_market_ids = {
+            alloc.market["id"] 
+            for alloc in vault.state.allocation
+        }
+        
+        # Split markets into approved and others
+        approved_markets = []
+        other_markets = []
+        
+        for market in markets:
+            if market.id in approved_market_ids:
+                approved_markets.append(market)
+            else:
+                other_markets.append(market)
+        
+        # Format response
+        response = [
+            f"Vault Analysis (${vault.state.totalAssetsUsd:,.2f} TVL)",
+            f"Current APY: {vault.state.apy * 100:.2f}%",
+            f"All-time APY: {vault.state.allTimeApy * 100:.2f}%\n"
+        ]
+        
+        # Add approved markets section
+        response.append("\n🟢 Approved Markets (Can reallocate):")
+        for market in approved_markets:
+            allocation = next(
+                (a for a in vault.state.allocation if a.market["id"] == market.id),
+                None
+            )
+            cap = allocation.supplyCap / (10 ** market.loanAsset.decimals) if allocation else 0
+            current_supply = allocation.supplyAssets / (10 ** market.loanAsset.decimals) if allocation else 0
+            
+            response.append(
+                f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol}"
+                f"\n  TVL: ${market.state.supplyAssetsUsd:,.2f}"
+                f"\n  Current Supply: {current_supply:,.2f} {market.loanAsset.symbol}"
+                f"\n  Supply Cap: {cap:,.2f} {market.loanAsset.symbol}"
+                f"\n  Utilization: {market.state.utilization * 100:.1f}%"
+                f"\n  Supply APY: {market.state.supplyApy * 100:.2f}%"
+                f"\n  Borrow APY: {market.state.borrowApy * 100:.2f}%"
+                f"\n  Parameters:"
+                f"\n    Loan: {market.loanAsset.address}"
+                f"\n    Collateral: {market.collateralAsset.address}"
+                f"\n    IRM: {market.irmAddress}"
+                f"\n    Oracle: {market.oracleAddress}"
+                f"\n    LLTV: {market.lltv:.2%}"
+            )
+            
+        # Add other markets section
+        response.append("\n\n🔵 Other Available Markets:")
+        for market in other_markets:
+            response.append(
+                f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol}"
+                f"\n  TVL: ${market.state.supplyAssetsUsd:,.2f}"
+                f"\n  Utilization: {market.state.utilization * 100:.1f}%"
+                f"\n  Supply APY: {market.state.supplyApy * 100:.2f}%"
+                f"\n  Borrow APY: {market.state.borrowApy * 100:.2f}%"
+                f"\n  Parameters:"
+                f"\n    USDC: {market.loanAsset.address}"
+                f"\n    Collateral: {market.collateralAsset.address}"
+                f"\n    IRM: {market.irmAddress}"
+                f"\n    Oracle: {market.oracleAddress}"
+                f"\n    LLTV: {market.lltv:.2%}"
+            )
+        
+        return "\n".join(response)
+        
+    except Exception as e:
+        logger.error(f"Error analyzing vault markets: {str(e)}", exc_info=True)
+        return f"Error analyzing vault markets: {str(e)}"
+

@@ -15,8 +15,15 @@ from pydantic import BaseModel
 from config import Config
 from utils import setup_cdp_toolkit
 import json
+from utils.market import fetch_all_morpho_markets, fetch_vault_market_status, VAULT_ADDRESS
 
-tools = setup_cdp_toolkit()
+print(f"VAULT_ADDRESS: {VAULT_ADDRESS}")
+
+tools = [
+    *setup_cdp_toolkit(),
+    # fetch_all_morpho_markets,
+    fetch_vault_market_status
+]
 tools_by_name = {tool.name: tool for tool in tools}
 
 # Initialize the vector store
@@ -29,7 +36,7 @@ morpho_knowledge_store = Chroma(
 
 # Define our models
 class InterpretResult(BaseModel):
-    intent: Literal["morpho", "action"]
+    intent: Literal["knowledge", "action"]
     description: str
 
 class State(TypedDict):
@@ -37,7 +44,7 @@ class State(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     
     # Interpretation results
-    intent: Literal["morpho", "action"]
+    intent: Literal["knowledge", "action"]
     description: str
     
     # Todo: Add more states here for different nodes to share data, for example building transactions.
@@ -70,16 +77,16 @@ executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 react_agent = create_react_agent(
     executor_llm,
     tools=tools,
-    state_modifier="""You are an Morpho Vault reallocator. Once you receive the command, use coinbase CDP toolkit to execute on-chain transactions.
+    state_modifier="""You are an Morpho Vault reallocator, who balance the supplied asset across different markets with in vault.
+    The vault address is {}. 
+    Once you receive the command, use coinbase CDP toolkit to execute on-chain transactions.
     You have access to the following tools:
+    - fetch_all_morpho_markets
+    - fetch_vault_market_status
     - get_balance
     - get_wallet_details
-    - transfer
-    - morpho_deposit
-    - morpho_withdraw
-    - morpho_is_allocator
     - morpho_reallocate
-    """
+    """.format(VAULT_ADDRESS)
 )
 
 async def interpret_message(state: State):
@@ -89,8 +96,8 @@ async def interpret_message(state: State):
     result = router.invoke([
         SystemMessage(content="""
         You are an admin command interpreter. Determine if the message requires:
-        - morpho: Answer question about Morpho protocol, vaults ...etc, that could be answered by documents in the knowledge base.
-        - action: any action related to wallet / account balance / specific morpho vault and tools to executing on-chain transactions through CDP Agentkit.
+        - knowledge: Answer static questions about Morpho protocol from knowledge base.
+        - action: any action related to vault reallocation / account balance / information about the vault, and other tools to executing on-chain transactions through CDP Agentkit.
         """),
         *state["messages"]
     ])
@@ -101,7 +108,7 @@ async def interpret_message(state: State):
     }
 
 async def answer_morpho_question(state: State):
-    """Handle morpho-type requests with deep analysis"""
+    """Handle knowledge-type requests with analysis"""
 
     context = morpho_knowledge_store.similarity_search(query=state["description"], k=5)
 
@@ -116,7 +123,7 @@ async def answer_morpho_question(state: State):
 
 async def action_task(state: State):
     """Handle action-type requests with on-chain transactions"""
-    response = react_agent.invoke({"messages": state["messages"]})
+    response = await react_agent.ainvoke({"messages": state["messages"]})
     # React Model returns their own state, we only need messages
     return {"messages": [response["messages"][-1]]}
 
@@ -134,26 +141,28 @@ def create_admin_graph():
     graph = StateGraph(State)
     
     # Add nodes
-    graph.add_node("interpret", interpret_message)
-    graph.add_node("morpho", answer_morpho_question)
+    # graph.add_node("interpret", interpret_message)
+    # graph.add_node("knowledge", answer_morpho_question)
     graph.add_node("action", action_task)
 
     
     # Create edges
-    graph.add_edge(START, "interpret")
+    # graph.add_edge(START, "interpret")
     
     # Add conditional edges based on interpretation
-    graph.add_conditional_edges(
-        "interpret",
-        route_intent,
-        {
-            "morpho": "morpho",
-            "action": "action"
-        }
-    )
+    # graph.add_conditional_edges(
+    #     "interpret",
+    #     route_intent,
+    #     {
+    #         "knowledge": "knowledge",
+    #         "action": "action"
+    #     }
+    # )
     
     # Connect both outcomes to END
-    graph.add_edge("morpho", END)
+    # graph.add_edge("knowledge", END)
+
+    graph.add_edge(START, "action")
     graph.add_edge("action", END)
     
     return graph.compile()
