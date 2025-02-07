@@ -71,7 +71,31 @@ REALLOCATE_PROMPT = """
 This tool reallocates assets across different markets in the Morpho vault.
 It takes:
 - vault_address: The address of the Morpho Vault
-- allocations: List of market allocations with their parameters and asset amounts
+- allocations: New list of market allocations with their parameters and new asset amount. For the last market which is a "supply" (increase in asset), simplily put MAX_UINT256 to move remaining to this market
+
+Example:
+```
+vault_address: 0x346aac1e83239db6a6cb760e95e13258ad3d1a6d
+allocations:
+    Allocation[0]
+    - market_params:
+        loan_token: 0x1234...
+        collateral_token: 0x1234...
+        oracle: 0x1234...
+        irm: 0x1234...
+        lltv: 1000000000000000000
+    - assets: 0
+    Allocation[1]
+    - market_params:
+        loan_token: 0x1234...
+        collateral_token: 0x1234...
+        oracle: 0x1234...
+        irm: 0x1234...
+        lltv: 1000000000000000000
+    - assets: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+```
+
+
 """
 
 class MorphoIsAllocatorInput(BaseModel):
@@ -151,13 +175,13 @@ def reallocate(
         formatted_allocations = [
             {
                 "marketParams": {
-                    "loanToken": alloc.market_params.loan_token,
-                    "collateralToken": alloc.market_params.collateral_token,
-                    "oracle": alloc.market_params.oracle,
-                    "irm": alloc.market_params.irm,
-                    "lltv": alloc.market_params.lltv,
+                    "loanToken": alloc["market_params"]["loan_token"],
+                    "collateralToken": alloc["market_params"]["collateral_token"],
+                    "oracle": alloc["market_params"]["oracle"],
+                    "irm": alloc["market_params"]["irm"],
+                    "lltv": alloc["market_params"]["lltv"],
                 },
-                "assets": alloc.assets,
+                "assets": alloc["assets"],
             }
             for alloc in allocations
         ]
@@ -171,6 +195,15 @@ def reallocate(
         return f"Reallocation transaction submitted: {tx.hash}"
     except Exception as e:
         return f"Error during reallocation: {e!s}"
+
+def get_reallocation_tool():
+    reallocate_tool = CdpTool(
+        name="morpho_reallocate",
+        description=REALLOCATE_PROMPT,
+        cdp_agentkit_wrapper=cdp_wrapper,
+        args_schema=MorphoReallocateInput,
+        func=reallocate,
+    )
 
 def setup_cdp_toolkit():
     """Initialize CDP toolkit with credentials from environment."""
