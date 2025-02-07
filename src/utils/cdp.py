@@ -1,6 +1,7 @@
 """CDP toolkit integration module."""
 import os
 import logging
+import json
 from typing import Optional, Tuple, Callable
 from cdp import Wallet
 from cdp.smart_contract import SmartContract
@@ -84,15 +85,15 @@ allocations:
         oracle: 0x1234...
         irm: 0x1234...
         lltv: 1000000000000000000
-    - assets: 0
+    - assets: 0 (remove assets from this market)
     Allocation[1]
     - market_params:
         loan_token: 0x1234...
-        collateral_token: 0x1234...
+        collateral_token: 0x4444...
         oracle: 0x1234...
         irm: 0x1234...
         lltv: 1000000000000000000
-    - assets: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+    - assets: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' (move all remaining assets to this market)
 ```
 
 
@@ -171,26 +172,29 @@ def reallocate(
         str: Transaction status message
     """
     try:
-        # Convert the allocations to the format expected by the contract
+        # Convert the allocations to the format expected by SDK (tuple)
         formatted_allocations = [
-            {
-                "marketParams": {
-                    "loanToken": alloc["market_params"]["loan_token"],
-                    "collateralToken": alloc["market_params"]["collateral_token"],
-                    "oracle": alloc["market_params"]["oracle"],
-                    "irm": alloc["market_params"]["irm"],
-                    "lltv": alloc["market_params"]["lltv"],
-                },
-                "assets": alloc["assets"],
-            }
-            for alloc in allocations
+            
+            # tuple of loan_token, collateral_token, oracle, irm, lltv
+            [
+                [
+                    alloc["market_params"]["loan_token"],
+                    alloc["market_params"]["collateral_token"],
+                    alloc["market_params"]["oracle"],
+                    alloc["market_params"]["irm"],
+                    alloc["market_params"]["lltv"],
+                ],
+                alloc["assets"]
+            ] for alloc in allocations
         ]
+
+        # convert to json
         
         tx = wallet.invoke_contract(
             contract_address=vault_address,
             method="reallocate",
             abi=MORPHO_VAULT_ABI,
-            args=[formatted_allocations]
+            args={"allocations": formatted_allocations}
         )
         return f"Reallocation transaction submitted: {tx.hash}"
     except Exception as e:
