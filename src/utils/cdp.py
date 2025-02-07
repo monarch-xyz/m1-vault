@@ -31,12 +31,47 @@ MORPHO_VAULT_ABI = [
         ],
         "stateMutability": "view"
     },
+    {
+        "type": "function",
+        "name": "reallocate",
+        "inputs": [
+            {
+                "internalType": "struct MarketAllocation[]",
+                "name": "allocations",
+                "type": "tuple[]",
+                "components": [
+                    {
+                        "internalType": "struct MarketParams",
+                        "name": "marketParams",
+                        "type": "tuple",
+                        "components": [
+                            { "internalType": "address", "name": "loanToken", "type": "address" },
+                            { "internalType": "address", "name": "collateralToken", "type": "address" },
+                            { "internalType": "address", "name": "oracle", "type": "address" },
+                            { "internalType": "address", "name": "irm", "type": "address" },
+                            { "internalType": "uint256", "name": "lltv", "type": "uint256" }
+                        ]
+                    },
+                    { "internalType": "uint256", "name": "assets", "type": "uint256" }
+                ]
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    }
 ]
 
 IS_ALLOCATOR_PROMPT = """
 This tool checks if an address is an allocator in the Morpho vault.
 It takes:
 - address: The address to check (e.g. 0x1234...)
+"""
+
+REALLOCATE_PROMPT = """
+This tool reallocates assets across different markets in the Morpho vault.
+It takes:
+- vault_address: The address of the Morpho Vault
+- allocations: List of market allocations with their parameters and asset amounts
 """
 
 class MorphoIsAllocatorInput(BaseModel):
@@ -50,6 +85,24 @@ class MorphoIsAllocatorInput(BaseModel):
         ...,
         description="The address of the Morpho Vault to check"
     )
+
+class MarketParams(BaseModel):
+    """Market parameters for Morpho markets."""
+    loan_token: str = Field(..., description="Address of the loan token")
+    collateral_token: str = Field(..., description="Address of the collateral token")
+    oracle: str = Field(..., description="Address of the oracle")
+    irm: str = Field(..., description="Address of the interest rate model")
+    lltv: int = Field(..., description="Liquidation LTV (loan-to-value ratio)")
+
+class MarketAllocation(BaseModel):
+    """Market allocation with parameters and amount."""
+    market_params: MarketParams = Field(..., description="Market parameters")
+    assets: int = Field(..., description="Amount of assets to allocate")
+
+class MorphoReallocateInput(BaseModel):
+    """Input schema for Morpho Vault reallocate action."""
+    vault_address: str = Field(..., description="The address of the Morpho Vault")
+    allocations: list[MarketAllocation] = Field(..., description="List of market allocations")
 
 def check_is_allocator(
     wallet: Wallet,
@@ -78,6 +131,47 @@ def check_is_allocator(
     except Exception as e:
         return f"Error checking allocator status: {e!s}"
 
+def reallocate(
+    wallet: Wallet,
+    vault_address: str,
+    allocations: list[MarketAllocation],
+) -> str:
+    """Reallocate assets across different markets.
+    
+    Args:
+        wallet (Wallet): The wallet to execute the transaction from
+        vault_address (str): The address of the Morpho Vault
+        allocations (list[MarketAllocation]): List of market allocations
+        
+    Returns:
+        str: Transaction status message
+    """
+    try:
+        # Convert the allocations to the format expected by the contract
+        formatted_allocations = [
+            {
+                "marketParams": {
+                    "loanToken": alloc.market_params.loan_token,
+                    "collateralToken": alloc.market_params.collateral_token,
+                    "oracle": alloc.market_params.oracle,
+                    "irm": alloc.market_params.irm,
+                    "lltv": alloc.market_params.lltv,
+                },
+                "assets": alloc.assets,
+            }
+            for alloc in allocations
+        ]
+        
+        tx = wallet.invoke_contract(
+            contract_address=vault_address,
+            method="reallocate",
+            abi=MORPHO_VAULT_ABI,
+            args=[formatted_allocations]
+        )
+        return f"Reallocation transaction submitted: {tx.hash}"
+    except Exception as e:
+        return f"Error during reallocation: {e!s}"
+
 def setup_cdp_toolkit():
     """Initialize CDP toolkit with credentials from environment."""
     try:
@@ -99,7 +193,16 @@ def setup_cdp_toolkit():
             args_schema=MorphoIsAllocatorInput,
             func=check_is_allocator,
         )
-        tools.append(isAllocatorTool)
+        
+        reallocateTool = CdpTool(
+            name="morpho_reallocate",
+            description=REALLOCATE_PROMPT,
+            cdp_agentkit_wrapper=cdp_wrapper,
+            args_schema=MorphoReallocateInput,
+            func=reallocate,
+        )
+        
+        tools.extend([isAllocatorTool, reallocateTool])
 
         logger.info("CDP toolkit initialized successfully.")
         return tools
