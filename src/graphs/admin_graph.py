@@ -78,6 +78,7 @@ react_agent = create_react_agent(
     - morpho_deposit
     - morpho_withdraw
     - morpho_is_allocator
+    - morpho_reallocate
     """
 )
 
