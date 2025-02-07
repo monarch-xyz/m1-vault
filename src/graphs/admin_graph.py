@@ -77,6 +77,7 @@ react_agent = create_react_agent(
     - transfer
     - morpho_deposit
     - morpho_withdraw
+    - morpho_is_allocator
     """
 )
 
@@ -88,8 +89,7 @@ async def interpret_message(state: State):
         SystemMessage(content="""
         You are an admin command interpreter. Determine if the message requires:
         - morpho: Answer question about Morpho protocol, vaults ...etc, that could be answered by documents in the knowledge base.
-
-        - action: any action related to wallet / account balance and tools to executing on-chain transactions through CDP Agentkit.
+        - action: any action related to wallet / account balance / specific morpho vault and tools to executing on-chain transactions through CDP Agentkit.
         """),
         *state["messages"]
     ])
