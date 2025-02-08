@@ -9,9 +9,10 @@ from utils import send_telegram_message_async
 class AdminMessageHandler(BaseHandler):
     """ Entry point to handle admin messages (from telegram for now) """
 
-    def __init__(self, agent):
+    def __init__(self, agent, logger):
         super().__init__(agent)
         self.graph = create_admin_graph()
+        self.logger = logger
 
     @property
     def subscribes_to(self):
@@ -19,6 +20,8 @@ class AdminMessageHandler(BaseHandler):
 
     async def handle(self, event: BaseEvent):
         if self._is_admin_message(event):
+            await self.logger.think("Admin Message", event.data.text)
+
             message = TelegramMessage.model_validate(event.data)
             response = await self._process_admin_command(message)
 

@@ -8,9 +8,10 @@ from web3 import Web3
 from config import Config
 
 class OnChainListener(Listener):
-    def __init__(self, event_bus):
+    def __init__(self, event_bus, logger):
         self.event_bus = event_bus
         self.web3 = None
+        self.logger = logger
     
     async def start(self):
         print(f"Starting onchain listener:")
@@ -22,8 +23,8 @@ class OnChainListener(Listener):
             latest_block = self.web3.eth.block_number
             
             # Todo: actual event logic
-            print(f"Latest block: {latest_block}")
-
+            await self.logger.event("RPC", f"Latest block: {latest_block}")
+            
             await asyncio.sleep(60)  # Poll every minute
     
     def _parse_event(self, raw_event) -> BaseEvent:
