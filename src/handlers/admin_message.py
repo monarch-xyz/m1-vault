@@ -14,6 +14,8 @@ class AdminMessageHandler(BaseHandler):
         self.agent = react_agent
         self.logger = logger
 
+        print(f"AdminMessageHandler initialized")
+
     @property
     def subscribes_to(self):
         return [EventType.TELEGRAM_MESSAGE]

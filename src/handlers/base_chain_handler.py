@@ -4,7 +4,7 @@ from utils.logger import LogService
 
 class BaseChainEventHandler(BaseHandler):
     def __init__(self, agent, logger: LogService):
-        self.agent = agent
+        super().__init__(agent)
         self.logger = logger
 
     @property
@@ -13,4 +13,4 @@ class BaseChainEventHandler(BaseHandler):
 
     async def handle(self, event):
         print(f"Chain event received: {event}") 
-        await self.logger.think("Chain Event", event.data.text)
+        await self.logger.think("Chain Event", event)

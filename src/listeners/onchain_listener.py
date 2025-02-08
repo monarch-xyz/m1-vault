@@ -111,8 +111,6 @@ class MorphoBlueProcessor(BaseEventProcessor):
     """Process MorphoBlue lending market events"""
     
     async def process_blocks(self, from_block: int, to_block: int):
-        print(f"MorphoBlue Processing blocks from {from_block} to {to_block}")
-
         # Get all relevant events in one batch
         supply_events = self.contract.events.Supply().get_logs(from_block=from_block, to_block=to_block)
         withdraw_events = self.contract.events.Withdraw().get_logs(from_block=from_block, to_block=to_block)
@@ -124,15 +122,14 @@ class MorphoBlueProcessor(BaseEventProcessor):
             try:
                 event = self._parse_event(log)
                 # We need to publish with event type and event data separately
+                print("publishing morpho blue event")
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
                 await self.logger.error("MorphoBlue", str(e))
 
     def _parse_event(self, log):
         evm_event_type = log.event.lower()  # supply, withdraw, repay, borrow
-        print(f"MorphoBlue event: {evm_event_type}")
         parsed = dict(log.args)
-        print(f"MorphoBlue parsed: {parsed}")
         
         # Convert bytes to hex string for market_id
         market_id = parsed.get('id', b'').hex() if isinstance(parsed.get('id'), bytes) else ''
@@ -140,7 +137,6 @@ class MorphoBlueProcessor(BaseEventProcessor):
         return {
             'evm_event': evm_event_type,
             'tx_hash': log.transactionHash.hex(),
-            'block_number': log.blockNumber,
             'market_id': market_id,
             'caller': parsed.get('caller', ''),
             'on_behalf': parsed.get('onBehalf', ''),
@@ -171,7 +167,6 @@ class MorphoVaultProcessor(BaseEventProcessor):
             'protocol': 'morpho_vault',
             'evm_event': 'deposit',
             'tx_hash': log.transactionHash.hex(),
-            'block_number': log.blockNumber,
             'sender': parsed.get('sender', ''),
             'owner': parsed.get('owner', ''),
             'assets': str(parsed.get('assets', 0)),
