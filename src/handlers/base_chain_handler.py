@@ -12,5 +12,11 @@ class BaseChainEventHandler(BaseHandler):
         return [EventType.CHAIN_EVENT]
 
     async def handle(self, event):
-        print(f"Chain event received: {event}") 
-        await self.logger.think("Chain Event", event)
+
+
+
+        await self.logger.think("Chain Event", {
+            "type": event["evm_event"],
+            "thought": "I got a chain event",
+            "data": "Not parsed for now"
+        })

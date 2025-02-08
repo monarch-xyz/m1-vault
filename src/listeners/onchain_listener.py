@@ -88,7 +88,7 @@ class OnChainListener(Listener):
                     )
                     self.last_processed_block = latest_block
                 
-                await asyncio.sleep(60)
+                await asyncio.sleep(10)
                 
             except Exception as e:
                 await self.logger.error("BlockPolling Error", str(e))
@@ -122,7 +122,6 @@ class MorphoBlueProcessor(BaseEventProcessor):
             try:
                 event = self._parse_event(log)
                 # We need to publish with event type and event data separately
-                print("publishing morpho blue event")
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
                 await self.logger.error("MorphoBlue", str(e))

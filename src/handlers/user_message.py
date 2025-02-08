@@ -14,4 +14,8 @@ class UserMessageHandler(BaseHandler):
 
     async def handle(self, event):
         print(f"User message received: {event}") 
-        await self.logger.think("User Message", event.data.text)
+        await self.logger.think("User Message", {
+            "type": "user_message",
+            "thought": "I got a user message",
+            "data": event.data.text
+        })
