@@ -1,6 +1,7 @@
 """CDP toolkit integration module."""
 import os
 import logging
+import json
 from typing import Optional, Tuple, Callable
 from cdp import Wallet
 from cdp.smart_contract import SmartContract
@@ -71,7 +72,31 @@ REALLOCATE_PROMPT = """
 This tool reallocates assets across different markets in the Morpho vault.
 It takes:
 - vault_address: The address of the Morpho Vault
-- allocations: List of market allocations with their parameters and asset amounts
+- allocations: New list of market allocations with their parameters and new asset amount. For the last market which is a "supply" (increase in asset), simplily put MAX_UINT256 to move remaining to this market
+
+Example:
+```
+vault_address: 0x346aac1e83239db6a6cb760e95e13258ad3d1a6d
+allocations:
+    Allocation[0]
+    - market_params:
+        loan_token: 0x1234...
+        collateral_token: 0x1234...
+        oracle: 0x1234...
+        irm: 0x1234...
+        lltv: 1000000000000000000
+    - assets: 0 (remove assets from this market)
+    Allocation[1]
+    - market_params:
+        loan_token: 0x1234...
+        collateral_token: 0x4444...
+        oracle: 0x1234...
+        irm: 0x1234...
+        lltv: 1000000000000000000
+    - assets: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' (move all remaining assets to this market)
+```
+
+
 """
 
 class MorphoIsAllocatorInput(BaseModel):
@@ -147,30 +172,42 @@ def reallocate(
         str: Transaction status message
     """
     try:
-        # Convert the allocations to the format expected by the contract
+        # Convert the allocations to the format expected by SDK (tuple)
         formatted_allocations = [
-            {
-                "marketParams": {
-                    "loanToken": alloc.market_params.loan_token,
-                    "collateralToken": alloc.market_params.collateral_token,
-                    "oracle": alloc.market_params.oracle,
-                    "irm": alloc.market_params.irm,
-                    "lltv": alloc.market_params.lltv,
-                },
-                "assets": alloc.assets,
-            }
-            for alloc in allocations
+            
+            # tuple of loan_token, collateral_token, oracle, irm, lltv
+            [
+                [
+                    alloc["market_params"]["loan_token"],
+                    alloc["market_params"]["collateral_token"],
+                    alloc["market_params"]["oracle"],
+                    alloc["market_params"]["irm"],
+                    alloc["market_params"]["lltv"],
+                ],
+                alloc["assets"]
+            ] for alloc in allocations
         ]
+
+        # convert to json
         
         tx = wallet.invoke_contract(
             contract_address=vault_address,
             method="reallocate",
             abi=MORPHO_VAULT_ABI,
-            args=[formatted_allocations]
+            args={"allocations": formatted_allocations}
         )
         return f"Reallocation transaction submitted: {tx.hash}"
     except Exception as e:
         return f"Error during reallocation: {e!s}"
+
+def get_reallocation_tool():
+    reallocate_tool = CdpTool(
+        name="morpho_reallocate",
+        description=REALLOCATE_PROMPT,
+        cdp_agentkit_wrapper=cdp_wrapper,
+        args_schema=MorphoReallocateInput,
+        func=reallocate,
+    )
 
 def setup_cdp_toolkit():
     """Initialize CDP toolkit with credentials from environment."""
