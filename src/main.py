@@ -1,61 +1,49 @@
 import asyncio
-import uvicorn
 from core.agent import Agent
 from listeners.telegram_listener import TelegramListener
 from listeners.onchain_listener import OnChainListener
 from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler
-from utils.logger import Logger, app
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-# Create global logger instance
-logger = Logger()
+from utils.logger import logger, start_log_server
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Initialize agent and components
-    agent = Agent(logger)
+async def main():
+    # Start logging server first
+    log_runner, log_site = await start_log_server()
     
-    # Initialize listeners
+    # Initialize agent with logging capability
+    agent = Agent(logger=logger)
+    
+    # Initialize components with logging
     listeners = [
         TelegramListener(agent.event_bus, logger),
         OnChainListener(agent.event_bus, logger)
     ]
     
-    # Initialize handlers
     handlers = [
         AdminMessageHandler(agent, logger),
         UserMessageHandler(agent, logger),
         BaseChainEventHandler(agent, logger)
     ]
-    
-    # Start each listener explicitly
-    for listener in listeners:
-        await listener.start()
-    
-    # Start agent
-    await agent.start()
-    await logger.action("System", "Agent started successfully")
-    
+
     try:
-        yield
+        # Start listeners
+        for listener in listeners:
+            await listener.start()
+        
+        # Start agent
+        await agent.start()
+        
+        # Keep main loop running
+        while agent.running:
+            await asyncio.sleep(1)
+            
+    except KeyboardInterrupt:
+        await agent.stop()
     finally:
-        # Cleanup on shutdown
+        # Cleanup
+        await log_site.stop()
+        await log_runner.cleanup()
         for listener in listeners:
             await listener.stop()
-        await agent.stop()
-        await logger.action("System", "Agent stopped")
-
-app.lifespan = lifespan
-
-async def run_agent():
-    config = uvicorn.Config(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_level="info"
-    )
-    server = uvicorn.Server(config)
-    await server.serve()
 
 if __name__ == "__main__":
-    asyncio.run(run_agent()) 
+    asyncio.run(main()) 

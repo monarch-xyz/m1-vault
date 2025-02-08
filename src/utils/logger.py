@@ -1,17 +1,18 @@
+import asyncio
+import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
-from fastapi import FastAPI, WebSocket
-from enum import Enum
+from aiohttp import web
 import json
-import logging
 
 # Configure basic logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logging.getLogger('httpx').setLevel(logging.WARNING)
 
-class LogCategory(Enum):
+class LogCategory:
     EVENT = "event"
     THINK = "think"
     SPEAK = "speak"
@@ -19,71 +20,112 @@ class LogCategory(Enum):
     ACTION = "action"
     ERROR = "error"
 
-class Logger:
-    def __init__(self, websocket: Optional[WebSocket] = None):
-        self.websocket = websocket
-        self._logger = logging.getLogger("agent")
-    
-    async def _log(self, category: LogCategory, topic: str, details: Any):
-        """Internal method to handle logging"""
+class LogService:
+    def __init__(self):
+        self.websocket_connections = set()
+        self.logger = logging.getLogger("agent")
+        self.logger.setLevel(logging.INFO)
+        
+        # Configure console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(console_handler)
+
+    async def log(self, category: str, topic: str, details: Any):
+        """Core logging method"""
         log_entry = {
-            "category": category.value,
+            "category": category,
             "topic": topic,
-            "details": details if isinstance(details, str) else json.dumps(details),
+            "details": str(details),
             "timestamp": datetime.now().isoformat()
         }
         
-        # Always log to console
-        self._logger.info(f"[{category.value}] {topic}: {details}")
+        # Log to console
+        self.logger.log(
+            logging.ERROR if category == LogCategory.ERROR else logging.INFO,
+            f"[{category}] {topic}: {details}"
+        )
         
-        # If websocket is connected, send to frontend
-        if self.websocket and not self.websocket.client_state.DISCONNECTED:
-            try:
-                await self.websocket.send_json(log_entry)
-            except Exception as e:
-                self._logger.error(f"Failed to send log to websocket: {str(e)}")
+        # Broadcast to websockets
+        await self.broadcast(log_entry)
 
-    async def event(self, topic: str, details: Any):
-        """Log external event triggered, and received by our listeners"""
-        await self._log(LogCategory.EVENT, topic, details)
+    async def broadcast(self, message: Dict):
+        """Send message to all connected websockets"""
+        for ws in set(self.websocket_connections):
+            try:
+                await ws.send_json(message)
+            except Exception as e:
+                self.logger.error(f"WebSocket error: {str(e)}")
+                self.websocket_connections.discard(ws)
+
+    async def websocket_handler(self, request):
+        """Handle incoming WebSocket connections"""
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        self.websocket_connections.add(ws)
+        
+        try:
+            async for msg in ws:
+                # Handle incoming messages if needed
+                pass
+        finally:
+            self.websocket_connections.remove(ws)
+        
+        return ws
+
+    # Add category-specific methods
+    async def action(self, topic: str, details: Any):
+        """Log an action taken by the system"""
+        await self.log(LogCategory.ACTION, topic, details)
 
     async def think(self, topic: str, details: Any):
-        """Log thought process"""
-        await self._log(LogCategory.THINK, topic, details)
-    
-    async def speak(self, topic: str, message: str):
-        """Log outgoing messages"""
-        await self._log(LogCategory.SPEAK, topic, message)
-    
-    async def memory(self, topic: str, data: Any):
-        """Log memory operations"""
-        await self._log(LogCategory.MEMORY, topic, data)
-    
-    async def action(self, topic: str, details: Any):
-        """Log actions taken"""
-        await self._log(LogCategory.ACTION, topic, details)
-    
-    async def error(self, topic: str, error: Exception):
-        """Log errors"""
-        await self._log(LogCategory.ERROR, topic, str(error))
+        """Log cognitive processing or decision making"""
+        await self.log(LogCategory.THINK, topic, details)
 
-# FastAPI app for websocket connection
-app = FastAPI()
+    async def memory(self, topic: str, details: Any):
+        """Log memory-related operations"""
+        await self.log(LogCategory.MEMORY, topic, details)
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    logger = Logger(websocket)
-    
-    try:
-        while True:
-            # Keep connection alive and handle any incoming messages
-            data = await websocket.receive_text()
-            # You could handle incoming commands here if needed
-    except Exception as e:
-        print(f"WebSocket error: {str(e)}")
-    finally:
-        print("WebSocket connection closed")
+    async def speak(self, topic: str, details: Any):
+        """Log output generation or communication"""
+        await self.log(LogCategory.SPEAK, topic, details)
+
+    async def error(self, topic: str, details: Any):
+        """Log error conditions"""
+        await self.log(LogCategory.ERROR, topic, details)
+
+    async def event(self, topic: str, details: Any):
+        """Log events"""
+        await self.log(LogCategory.EVENT, topic, details)
+
+# Singleton instance
+logger = LogService()
+
+# FastAPI-independent WebSocket setup
+async def start_log_server():
+    app = web.Application()
+    app.add_routes([web.get('/ws', logger.websocket_handler)])
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8000)
+    await site.start()
+    return runner, site
+
+# Add module-level convenience functions
+async def log_action(topic: str, details: Any):
+    await logger.action(topic, details)
+
+async def log_think(topic: str, details: Any):
+    await logger.think(topic, details)
+
+async def log_memory(topic: str, details: Any):
+    await logger.memory(topic, details)
+
+async def log_speak(topic: str, details: Any):
+    await logger.speak(topic, details)
+
+async def log_error(topic: str, details: Any):
+    await logger.error(topic, details)
 
 if __name__ == "__main__":
     asyncio.run(main())

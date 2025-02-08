@@ -2,10 +2,10 @@ from typing import List
 from abc import ABC, abstractmethod
 from .event_bus import EventBus
 from models.events import EventType
-from utils.logger import Logger
+from utils.logger import LogService
 
 class Listener(ABC):
-    def __init__(self, event_bus, logger: Logger):
+    def __init__(self, event_bus, logger: LogService):
         self.event_bus = event_bus
         self.logger = logger
     
@@ -18,7 +18,7 @@ class Listener(ABC):
         pass
 
 class Agent:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: LogService):
         self.event_bus = EventBus()
         self.running = False
         self.logger = logger

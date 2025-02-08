@@ -4,12 +4,12 @@ from .base_handler import BaseHandler
 from graphs.admin_graph import create_admin_graph
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
-
+from utils.logger import LogService
 
 class AdminMessageHandler(BaseHandler):
     """ Entry point to handle admin messages (from telegram for now) """
 
-    def __init__(self, agent, logger):
+    def __init__(self, agent, logger: LogService):
         super().__init__(agent)
         self.graph = create_admin_graph()
         self.logger = logger
