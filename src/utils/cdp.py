@@ -201,6 +201,13 @@ def reallocate(
         return f"Error during reallocation: {e!s}"
 
 def get_reallocation_tool():
+    cdp_wrapper = CdpAgentkitWrapper(
+        cdp_api_key_name=os.getenv("CDP_API_KEY_NAME"),
+        cdp_api_key_private_key=os.getenv("CDP_API_PRIVATE_KEY"),
+        network_id=os.getenv("NETWORK_ID"),
+        mnemonic_phrase=os.getenv("MNEMONIC_PHRASE"),
+    )
+
     reallocate_tool = CdpTool(
         name="morpho_reallocate",
         description=REALLOCATE_PROMPT,
@@ -208,6 +215,8 @@ def get_reallocation_tool():
         args_schema=MorphoReallocateInput,
         func=reallocate,
     )
+
+    return reallocate_tool
 
 def setup_cdp_toolkit():
     """Initialize CDP toolkit with credentials from environment."""

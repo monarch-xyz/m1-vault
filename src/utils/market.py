@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import aiohttp
 import logging
 from enum import Enum
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,21 @@ class VaultResponse(BaseModel):
     """Response from vault query"""
     state: VaultState
     asset: VaultAsset
+
+@dataclass
+class MarketInfo:
+    """Information about a market that the vault is allocated to"""
+    market_id: str  # uniqueKey
+    loan_symbol: str
+    collateral_symbol: str
+    lltv: float
+    
+    @property
+    def display_name(self) -> str:
+        """Human readable market name with LLTV in percentage"""
+        # Convert LLTV from 1e18 format to percentage
+        lltv_percentage = (self.lltv / 1e18) * 100
+        return f"{self.loan_symbol}-{self.collateral_symbol} ({lltv_percentage:.0f}%)"
 
 async def get_morpho_markets() -> List[Market]:
     """Fetch all USDC markets from Morpho"""
@@ -298,4 +314,48 @@ async def fetch_vault_market_status() -> str:
     except Exception as e:
         logger.error(f"Error analyzing vault markets: {str(e)}", exc_info=True)
         return f"Error analyzing vault markets: {str(e)}"
+
+async def get_vault_allocations() -> List[MarketInfo]:
+    """Fetch all markets that the vault is allocated to"""
+    async with aiohttp.ClientSession() as session:
+        try:
+            variables = {"vaultId": VAULT_ADDRESS}
+            
+            async with session.post(
+                MORPHO_API_URL,
+                json={
+                    "query": GET_VAULT,
+                    "variables": variables
+                }
+            ) as response:
+                response.raise_for_status()
+                vault_data = await response.json()
+                if "errors" in vault_data:
+                    raise Exception(f"GraphQL errors: {vault_data['errors']}")
+                
+                # Get all markets first for symbol lookup
+                markets = await get_morpho_markets()
+                markets_by_id = {m.id: m for m in markets}
+                
+                vault = VaultResponse(**vault_data["data"]["vaultByAddress"])
+                
+                # Build market info objects
+                market_infos = []
+                for allocation in vault.state.allocation:
+                    market_id = allocation.market["uniqueKey"]
+                    market = markets_by_id.get(allocation.market["id"])
+                    
+                    if market:
+                        market_infos.append(MarketInfo(
+                            market_id=market_id,
+                            loan_symbol=market.loanAsset.symbol,
+                            collateral_symbol=market.collateralAsset.symbol,
+                            lltv=market.lltv
+                        ))
+                
+                return market_infos
+                
+        except Exception as e:
+            logger.error(f"Error fetching vault allocations: {str(e)}")
+            raise
 

@@ -3,39 +3,47 @@ from core.agent import Agent
 from listeners.telegram_listener import TelegramListener
 from listeners.onchain_listener import OnChainListener
 from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler
+from utils.logger import logger, start_log_server
 
 async def main():
-    agent = Agent()
+    # Start logging server first
+    log_runner, log_site = await start_log_server()
     
-    # Initialize listeners
+    # Initialize agent with logging capability
+    agent = Agent(logger=logger)
+    
+    # Initialize components with logging
     listeners = [
-        TelegramListener(agent.event_bus),
-        OnChainListener(agent.event_bus)
+        TelegramListener(agent.event_bus, logger),
+        OnChainListener(agent.event_bus, logger)
     ]
     
-    # Initialize handlers
     handlers = [
-        AdminMessageHandler(agent),
-        UserMessageHandler(agent),
-        BaseChainEventHandler(agent)
+        AdminMessageHandler(agent, logger),
+        UserMessageHandler(agent, logger),
+        BaseChainEventHandler(agent, logger)
     ]
-    
-    # Start each listener explicitly
-    for listener in listeners:
-        await listener.start()
-    
-    # Start agent (this will publish SYSTEM_START event)
-    await agent.start()
-    
+
     try:
-        # Keep the main process running
+        # Start listeners
+        for listener in listeners:
+            await listener.start()
+        
+        # Start agent
+        await agent.start()
+        
+        # Keep main loop running
         while agent.running:
             await asyncio.sleep(1)
+            
     except KeyboardInterrupt:
-        # Stop all listeners before shutting down
+        await agent.stop()
+    finally:
+        # Cleanup
+        await log_site.stop()
+        await log_runner.cleanup()
         for listener in listeners:
             await listener.stop()
-        await agent.stop()
 
 if __name__ == "__main__":
     asyncio.run(main()) 

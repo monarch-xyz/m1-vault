@@ -7,10 +7,11 @@ import time
 from models.messages import TelegramMessage
 
 class TelegramListener(Listener):
-    def __init__(self, event_bus):
+    def __init__(self, event_bus, logger):
         self.event_bus = event_bus
         self.application = None
         self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        self.logger = logger
 
     async def start(self):
         """Initialize and start the Telegram bot"""
@@ -39,7 +40,7 @@ class TelegramListener(Listener):
         """Process incoming Telegram messages"""
         if not update.message or not update.message.text:
             return
-        
+
         data = TelegramMessage(
             text=update.message.text,
             user_id=update.effective_user.id,
@@ -53,7 +54,7 @@ class TelegramListener(Listener):
             source="telegram",
             timestamp=time.time()
         )
-            
+
         await self.event_bus.publish(EventType.TELEGRAM_MESSAGE, event)
 
     async def stop(self):
