@@ -17,7 +17,7 @@ class BaseEventProcessor:
         self.logger = logger
         self.event_types = []  # ['Deposit', 'Withdraw']
 
-    def process_blocks(self, from_block: int, to_block: int):
+    async def process_blocks(self, from_block: int, to_block: int):
         """Process events in block range (to be implemented per contract)"""
         raise NotImplementedError
 
@@ -91,34 +91,28 @@ class OnChainListener(Listener):
                 await asyncio.sleep(60)
                 
             except Exception as e:
-                await self.logger.error("BlockPolling", str(e))
+                await self.logger.error("BlockPolling Error", str(e))
                 await asyncio.sleep(60)
 
     async def _process_new_blocks(self, from_block: int, to_block: int):
         """Notify all processors about new block range"""
         for name, processor in self.processors.items():
             try:
-                processor.process_blocks(from_block, to_block)
+                await processor.process_blocks(from_block, to_block)
             except Exception as e:
-                await self.logger.error(f"Processor_{name}", str(e))
+                await self.logger.error(f"Processor_{name} Error", str(e))
 
     async def stop(self):
         await self.logger.event("OnChainListener", "Stopping block polling...")
 
-    def _parse_event(self, raw_event) -> BaseEvent:
-        # Implement event parsing logic
-        return BaseEvent(
-            type=EventType.USER_MESSAGE,
-            data=raw_event,
-            source="blockchain",
-            timestamp=time.time()
-        )
 
 # Example processor implementations
 class MorphoBlueProcessor(BaseEventProcessor):
     """Process MorphoBlue lending market events"""
     
-    def process_blocks(self, from_block: int, to_block: int):
+    async def process_blocks(self, from_block: int, to_block: int):
+        print(f"MorphoBlue Processing blocks from {from_block} to {to_block}")
+
         # Get all relevant events in one batch
         supply_events = self.contract.events.Supply().get_logs(from_block=from_block, to_block=to_block)
         withdraw_events = self.contract.events.Withdraw().get_logs(from_block=from_block, to_block=to_block)
@@ -129,60 +123,59 @@ class MorphoBlueProcessor(BaseEventProcessor):
         for log in supply_events + withdraw_events + repay_events + borrow_events:
             try:
                 event = self._parse_event(log)
-                self.event_bus.publish(event)
+                # We need to publish with event type and event data separately
+                await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
-                self.logger.error(f"Error processing MorphoBlue event: {str(e)}")
+                await self.logger.error("MorphoBlue", str(e))
 
     def _parse_event(self, log):
         evm_event_type = log.event.lower()  # supply, withdraw, repay, borrow
+        print(f"MorphoBlue event: {evm_event_type}")
         parsed = dict(log.args)
+        print(f"MorphoBlue parsed: {parsed}")
         
-        return BaseEvent(
-            type=EventType.CHAIN_EVENT,
-            data={
-                'protocol': 'morpho_blue',
-                'evm_event': evm_event_type,
-                'tx_hash': log.transactionHash.hex(),
-                'block_number': log.blockNumber,
-                'market_id': parsed.get('id', b'').hex(),
-                'caller': parsed.get('caller', ''),
-                'on_behalf': parsed.get('onBehalf', ''),
-                'receiver': parsed.get('receiver', ''),
-                'assets': str(parsed.get('assets', 0)),
-                'shares': str(parsed.get('shares', 0))
-            },
-            source="morpho_blue",
-            timestamp=int(time.time())
-        )
+        # Convert bytes to hex string for market_id
+        market_id = parsed.get('id', b'').hex() if isinstance(parsed.get('id'), bytes) else ''
+        
+        return {
+            'evm_event': evm_event_type,
+            'tx_hash': log.transactionHash.hex(),
+            'block_number': log.blockNumber,
+            'market_id': market_id,
+            'caller': parsed.get('caller', ''),
+            'on_behalf': parsed.get('onBehalf', ''),
+            'receiver': parsed.get('receiver', ''),
+            'assets': str(parsed.get('assets', 0)),
+            'shares': str(parsed.get('shares', 0)),
+            'source': "morpho_blue",
+            'timestamp': int(time.time())
+        }
 
 class MorphoVaultProcessor(BaseEventProcessor):
     """Process Morpho Vault deposit events"""
     
-    def process_blocks(self, from_block: int, to_block: int):
+    async def process_blocks(self, from_block: int, to_block: int):
         deposit_events = self.contract.events.Deposit().get_logs(from_block=from_block, to_block=to_block)
         
         for log in deposit_events:
             try:
                 event = self._parse_event(log)
-                self.event_bus.publish(event)
+                await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
-                self.logger.error(f"Error processing Vault deposit: {str(e)}")
+                await self.logger.error("MorphoVault event process error", str(e))
 
     def _parse_event(self, log):
         parsed = dict(log.args)
         
-        return BaseEvent(
-            type=EventType.CHAIN_EVENT,
-            data={
-                'protocol': 'morpho_vault',
-                'evm_event': 'deposit',
-                'tx_hash': log.transactionHash.hex(),
-                'block_number': log.blockNumber,
-                'sender': parsed.get('sender', ''),
-                'owner': parsed.get('owner', ''),
-                'assets': str(parsed.get('assets', 0)),
-                'shares': str(parsed.get('shares', 0))
-            },
-            source="morpho_vault",
-            timestamp=int(time.time())
-        ) 
+        return {
+            'protocol': 'morpho_vault',
+            'evm_event': 'deposit',
+            'tx_hash': log.transactionHash.hex(),
+            'block_number': log.blockNumber,
+            'sender': parsed.get('sender', ''),
+            'owner': parsed.get('owner', ''),
+            'assets': str(parsed.get('assets', 0)),
+            'shares': str(parsed.get('shares', 0)),
+            'source': "morpho_vault",
+            'timestamp': int(time.time())
+        } 

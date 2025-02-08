@@ -15,7 +15,7 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 class LogCategory:
     EVENT = "event"
     THINK = "think"
-    SPEAK = "speak"
+    CONVERSATION = "conversation"
     MEMORY = "memory"
     ACTION = "action"
     ERROR = "error"
@@ -36,7 +36,7 @@ class LogService:
         log_entry = {
             "category": category,
             "topic": topic,
-            "details": str(details),
+            "details": details,
             "timestamp": datetime.now().isoformat()
         }
         
@@ -86,9 +86,9 @@ class LogService:
         """Log memory-related operations"""
         await self.log(LogCategory.MEMORY, topic, details)
 
-    async def speak(self, topic: str, details: Any):
+    async def conversation(self, topic: str, details: Any):
         """Log output generation or communication"""
-        await self.log(LogCategory.SPEAK, topic, details)
+        await self.log(LogCategory.CONVERSATION, topic, details)
 
     async def error(self, topic: str, details: Any):
         """Log error conditions"""
@@ -121,8 +121,8 @@ async def log_think(topic: str, details: Any):
 async def log_memory(topic: str, details: Any):
     await logger.memory(topic, details)
 
-async def log_speak(topic: str, details: Any):
-    await logger.speak(topic, details)
+async def log_conversation(topic: str, details: Any):
+    await logger.conversation(topic, details)
 
 async def log_error(topic: str, details: Any):
     await logger.error(topic, details)

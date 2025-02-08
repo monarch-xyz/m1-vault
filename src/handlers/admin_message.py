@@ -1,7 +1,7 @@
 from models.events import EventType, BaseEvent
 from models.messages import TelegramMessage
 from .base_handler import BaseHandler
-from graphs.admin_graph import create_admin_graph
+from graphs.admin_react import react_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 from utils.logger import LogService
@@ -11,7 +11,7 @@ class AdminMessageHandler(BaseHandler):
 
     def __init__(self, agent, logger: LogService):
         super().__init__(agent)
-        self.graph = create_admin_graph()
+        self.agent = react_agent
         self.logger = logger
 
     @property
@@ -20,10 +20,18 @@ class AdminMessageHandler(BaseHandler):
 
     async def handle(self, event: BaseEvent):
         if self._is_admin_message(event):
-            await self.logger.think("Admin Message", event.data.text)
+            await self.logger.conversation("Admin Message", {
+                "from": "admin",
+                "text": event.data.text
+            })
 
             message = TelegramMessage.model_validate(event.data)
             response = await self._process_admin_command(message)
+
+            await self.logger.conversation("Agent Response", {
+                "from": "agent",
+                "text": response
+            })
 
             # send response back to the admin
             await send_telegram_message_async(message.chat_id, response)
@@ -34,7 +42,7 @@ class AdminMessageHandler(BaseHandler):
 
     async def _process_admin_command(self, message: TelegramMessage):
         # Process through the graph
-        state = await self.graph.ainvoke({
+        state = await self.agent.ainvoke({
             "messages": [HumanMessage(content=message.text)]
         })
         
