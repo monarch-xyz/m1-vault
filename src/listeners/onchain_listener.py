@@ -8,6 +8,8 @@ from config import Config
 from web3.contract import Contract
 import json
 import os
+from models.messages import ChainMessage
+    
 
 class BaseEventProcessor:
     """Base class for contract-specific event processors"""
@@ -178,24 +180,19 @@ class MorphoVaultProcessor(BaseEventProcessor):
             try:
                 txhash = log.transactionHash.hex()
                 
-                # Wait for transaction receipt to ensure it's mined
-                receipt = None
+                # Try to get the transaction with retries
+                tx = None
                 retries = 3
-                while retries > 0 and not receipt:
+                while retries > 0 and not tx:
                     try:
-                        receipt = self.web3.eth.get_transaction_receipt(txhash)
-                        if receipt and receipt['status'] != 1:
-                            return
+                        tx = self.web3.eth.get_transaction(txhash)
                     except Exception:
                         retries -= 1
-                        await asyncio.sleep(1)
+                        if retries > 0:  # Only sleep if we're going to retry
+                            await asyncio.sleep(3)
                 
-                if not receipt:
-                    return
-
-                # Now get the full transaction
-                tx = self.web3.eth.get_transaction(txhash)
                 if not tx:
+                    print(f"[MorphoVault] No transaction found for {txhash}")
                     return
 
                 # Extract and decode message
@@ -219,10 +216,17 @@ class MorphoVaultProcessor(BaseEventProcessor):
                     if message:  # Only process non-empty messages
                         print(f"[MorphoVault] Decoded message: {message}")
                         
+                        data = ChainMessage(
+                            text=message,
+                            sender=tx['from'],
+                            transaction_hash=txhash,
+                            timestamp=time.time()
+                        )
+
                         # publish user message
                         event = BaseEvent(
                             type=EventType.USER_MESSAGE,
-                            data={ "text": message },
+                            data=data,
                             source="onchain",
                             timestamp=time.time()
                         )
