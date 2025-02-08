@@ -120,8 +120,16 @@ class MorphoBlueProcessor(BaseEventProcessor):
         # Process and publish events
         for log in supply_events + withdraw_events + repay_events + borrow_events:
             try:
-                event = self._parse_event(log)
+                data = self._parse_event(log)
                 # We need to publish with event type and event data separately
+
+                event = BaseEvent(
+                    type=EventType.CHAIN_EVENT,
+                    data=data,
+                    source="morpho_blue",
+                    timestamp=time.time()
+                )
+
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
                 await self.logger.error("MorphoBlue", str(e))
@@ -154,7 +162,13 @@ class MorphoVaultProcessor(BaseEventProcessor):
         
         for log in deposit_events:
             try:
-                event = self._parse_event(log)
+                data = self._parse_event(log)
+                event = BaseEvent(
+                    type=EventType.CHAIN_EVENT,
+                    data=data,
+                    source="morpho_vault",
+                    timestamp=time.time()
+                )
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
                 await self.logger.error("MorphoVault event process error", str(e))
