@@ -11,10 +11,11 @@ import os
 
 class BaseEventProcessor:
     """Base class for contract-specific event processors"""
-    def __init__(self, contract: Contract, event_bus, logger):
+    def __init__(self, contract: Contract, event_bus, logger, web3):
         self.contract = contract
         self.event_bus = event_bus
         self.logger = logger
+        self.web3 = web3
         self.event_types = []  # ['Deposit', 'Withdraw']
 
     async def process_blocks(self, from_block: int, to_block: int):
@@ -56,11 +57,11 @@ class OnChainListener(Listener):
         # Initialize processors
         self.add_processor(
             "morpho_blue",
-            MorphoBlueProcessor(morpho_blue_contract, event_bus, logger)
+            MorphoBlueProcessor(morpho_blue_contract, event_bus, logger, self.web3)
         )
         self.add_processor(
             "morpho_vault",
-            MorphoVaultProcessor(vault_contract, event_bus, logger)
+            MorphoVaultProcessor(vault_contract, event_bus, logger, self.web3)
         )
     
     def add_processor(self, name: str, processor: BaseEventProcessor):
@@ -68,7 +69,6 @@ class OnChainListener(Listener):
         self.processors[name] = processor
 
     async def start(self):
-        await self.logger.action("OnChainListener", "Starting block polling...")
         asyncio.create_task(self._poll_loop())
     
     async def _poll_loop(self):
@@ -161,6 +161,7 @@ class MorphoVaultProcessor(BaseEventProcessor):
         deposit_events = self.contract.events.Deposit().get_logs(from_block=from_block, to_block=to_block)
         
         for log in deposit_events:
+            # parse deposit event and set as "CHAIN_EVENT" event
             try:
                 data = self._parse_event(log)
                 event = BaseEvent(
@@ -171,7 +172,67 @@ class MorphoVaultProcessor(BaseEventProcessor):
                 )
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
-                await self.logger.error("MorphoVault event process error", str(e))
+                print(f"[MorphoVault] Event process error: {str(e)}")
+
+            # Parse attached bytes as user message
+            try:
+                txhash = log.transactionHash.hex()
+                
+                # Wait for transaction receipt to ensure it's mined
+                receipt = None
+                retries = 3
+                while retries > 0 and not receipt:
+                    try:
+                        receipt = self.web3.eth.get_transaction_receipt(txhash)
+                        if receipt and receipt['status'] != 1:
+                            return
+                    except Exception:
+                        retries -= 1
+                        await asyncio.sleep(1)
+                
+                if not receipt:
+                    return
+
+                # Now get the full transaction
+                tx = self.web3.eth.get_transaction(txhash)
+                if not tx:
+                    return
+
+                # Extract and decode message
+                input_data = tx['input']
+                if len(input_data) <= 68:  # No message attached
+                    return
+                    
+                # Convert HexBytes to string and remove '0x' prefix
+                if hasattr(input_data, 'hex'):
+                    message_hex = input_data[68:].hex()
+                else:
+                    message_hex = input_data[68:]
+                    if message_hex.startswith('0x'):
+                        message_hex = message_hex[2:]
+                
+                try:
+                    # Try to decode as UTF-8 string
+                    message_bytes = bytes.fromhex(message_hex)
+                    message = message_bytes.decode('utf-8').strip()
+                    
+                    if message:  # Only process non-empty messages
+                        print(f"[MorphoVault] Decoded message: {message}")
+                        
+                        # publish user message
+                        event = BaseEvent(
+                            type=EventType.USER_MESSAGE,
+                            data={ "text": message },
+                            source="onchain",
+                            timestamp=time.time()
+                        )
+                        await self.event_bus.publish(EventType.USER_MESSAGE, event)
+
+                except (UnicodeDecodeError, ValueError) as e:
+                    print(f"[MorphoVault] Message decode error: {str(e)}")
+
+            except Exception as e:
+                print(f"[MorphoVault] Error: {str(e)}")
 
     def _parse_event(self, log):
         parsed = dict(log.args)

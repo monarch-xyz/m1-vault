@@ -142,8 +142,10 @@ class MarketInfo:
     
     @property
     def display_name(self) -> str:
-        """Human readable market name"""
-        return f"{self.loan_symbol}-{self.collateral_symbol} ({self.lltv:.0%})"
+        """Human readable market name with LLTV in percentage"""
+        # Convert LLTV from 1e18 format to percentage
+        lltv_percentage = (self.lltv / 1e18) * 100
+        return f"{self.loan_symbol}-{self.collateral_symbol} ({lltv_percentage:.0f}%)"
 
 async def get_morpho_markets() -> List[Market]:
     """Fetch all USDC markets from Morpho"""
