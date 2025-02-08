@@ -43,8 +43,6 @@ class BaseChainEventHandler(BaseHandler):
         # Skip if we haven't initialized our market list yet
         if not self.tracked_markets:
             return
-            
-        print('Event to handle: ', event)
 
         try:
             # Extract and normalize market_id from the event
