@@ -29,20 +29,29 @@ For knowledge:
 """
 
 @tool
-async def market_analysis(reasoning_prompt: str):
+async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
     """
     Giving the data and current stats, conduct a thorough reasoing about the prompt related to market analysis.
+    Make sure to use this tool with other tools to gather data.
 
     For example:
     - Given the 35% rate of USDC-ezETH market, with low liquidity and high utilization rate (99%), is it a good idea to reallocate the asset to the market?
 
     Args:
         reasoning_prompt: The prompt to reason about
+        market_or_vault_data: The data you gather from other tools
+    """
+
+    final_message = f"""
+    {reasoning_prompt}
+
+    Data:
+    {market_or_vault_data}
     """
     
     response = llm.invoke([
         SystemMessage(content=prompt),
-        HumanMessage(content=reasoning_prompt)
+        HumanMessage(content=final_message)
     ])
 
     reasoning = response.content

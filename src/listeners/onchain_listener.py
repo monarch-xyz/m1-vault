@@ -182,14 +182,14 @@ class MorphoVaultProcessor(BaseEventProcessor):
                 
                 # Try to get the transaction with retries
                 tx = None
-                retries = 3
+                retries = 5
                 while retries > 0 and not tx:
                     try:
                         tx = self.web3.eth.get_transaction(txhash)
                     except Exception:
                         retries -= 1
                         if retries > 0:  # Only sleep if we're going to retry
-                            await asyncio.sleep(3)
+                            await asyncio.sleep(5)
                 
                 if not tx:
                     print(f"[MorphoVault] No transaction found for {txhash}")

@@ -41,7 +41,7 @@ react_agent = create_react_agent(
     - fetch_all_morpho_markets
     - fetch_vault_market_status
     - morpho_reallocate
-    - market_analysis: Use this tool to have deep and thorough reasoning about market, vaults, or others
+    - market_analysis: Use this tool to have deep and thorough reasoning about market, vaults, or others, make sure to provide data you gather from other tools
 
     - add_long_term_memory: Use it when the admin provide objective insights that would help analyze the market in the future. Do not store temporary data like util rate or market rate.
     - get_long_term_memory: Use it to find potential relevant insight from the long term memory.
