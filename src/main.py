@@ -4,6 +4,10 @@ from listeners.telegram_listener import TelegramListener
 from listeners.onchain_listener import OnChainListener
 from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler
 from utils.logger import logger, start_log_server
+from aiohttp import web
+
+async def healthcheck(request):
+    return web.Response(text="OK")
 
 async def main():
     # Start logging server first
@@ -31,6 +35,10 @@ async def main():
         
         # Start agent
         await agent.start()
+        
+        # Add healthcheck endpoint
+        app = web.Application()
+        app.add_routes([web.get('/health', healthcheck)])
         
         # Keep main loop running
         while agent.running:

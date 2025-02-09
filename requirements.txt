@@ -18,3 +18,5 @@ chromadb>=0.6.3
 langchain-chroma>=0.2.1
 fastapi>=0.115.4
 websockets>=13.0
+aiohttp>=3.9.0
+aiohttp-middlewares>=2.0.0

@@ -1,10 +1,11 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
   },
   "deploy": {
     "startCommand": "python -m src.main",
-    "healthcheckPath": "/",
-    "healthcheckTimeout": 100
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30
   }
 }
