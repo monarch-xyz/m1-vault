@@ -15,8 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Change working directory to src
-WORKDIR /app/src
+# Install the package
+RUN pip install -e .
 
-# Run main.py directly
-CMD ["python", "main.py"]
+CMD ["start-bot"]

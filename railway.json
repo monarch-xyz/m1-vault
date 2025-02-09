@@ -4,7 +4,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "python -m src.main",
+    "startCommand": "start-bot",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30
   }
