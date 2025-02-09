@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Add src directory to Python path
-ENV PYTHONPATH="/app"
+# Change working directory to src
+WORKDIR /app/src
 
-CMD ["python", "-m", "src.main"]
+# Run main.py directly
+CMD ["python", "main.py"]
