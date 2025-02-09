@@ -22,23 +22,15 @@ async def websocket_handler(request):
 
 async def init_app():
     app = web.Application()
-    
-    # Add healthcheck route
-    app.add_routes([web.get('/health', healthcheck)])
-    
-    # Initialize logging WebSocket
-    await start_log_server(app)
-    
+    app.add_routes([
+        web.get('/health', healthcheck),
+        web.get('/ws', websocket_handler)
+    ])
     return app
 
 async def main():
-    app = await init_app()
-    runner = web.AppRunner(app)
-    await runner.setup()
-    
-    port = int(os.getenv("PORT", "8000"))
-    site = web.TCPSite(runner, host='0.0.0.0', port=port)
-    await site.start()
+    # Start logging server first
+    log_runner, log_site = await start_log_server()
     
     # Initialize agent with logging capability
     agent = Agent(logger=logger)
@@ -63,6 +55,25 @@ async def main():
         # Start agent
         await agent.start()
         
+        # Add healthcheck endpoint
+        app = await init_app()
+        runner = web.AppRunner(app)
+        await runner.setup()
+        
+        # Get port from environment with proper fallback
+        port = int(os.getenv("PORT", "8000"))  # Default to 8000
+        
+        try:
+            site = web.TCPSite(runner, host='0.0.0.0', port=port)
+            await site.start()
+            print(f"Server started on port {port}")
+        except OSError as e:
+            print(f"Failed to start server on port {port}: {e}")
+            print(f"Try either:")
+            print(f"1. Changing PORT environment variable (current: {port})")
+            print(f"2. Killing process using port: lsof -i :{port} | awk")
+            raise
+        
         # Keep main loop running
         while agent.running:
             await asyncio.sleep(1)
@@ -71,6 +82,8 @@ async def main():
         await agent.stop()
     finally:
         # Cleanup
+        await log_site.stop()
+        await log_runner.cleanup()
         for listener in listeners:
             await listener.stop()
 
