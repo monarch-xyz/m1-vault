@@ -13,3 +13,5 @@ class EventBus:
         if event_type in self.subscribers:
             for callback in self.subscribers[event_type]:
                 await callback(data)
+
+__all__ = ['EventBus']

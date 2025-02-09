@@ -31,4 +31,6 @@ class Agent:
     async def stop(self):
         self.running = False
         await self.logger.action("Agent", "Stopping agent...")
-        await self.event_bus.publish(EventType.SYSTEM_SHUTDOWN) 
+        await self.event_bus.publish(EventType.SYSTEM_SHUTDOWN)
+
+__all__ = ['Agent', 'Listener'] 

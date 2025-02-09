@@ -12,8 +12,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy entire project
 COPY . .
 
-# Use Railway's PORT environment variable
+# Install as package
+RUN pip install --no-cache-dir -e .
+
 CMD ["python", "-m", "src.main"]
