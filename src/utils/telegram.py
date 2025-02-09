@@ -2,7 +2,6 @@
 
 from telegram import Bot
 from telegram.error import TelegramError
-from telegram import Bot
 from typing import Optional
 from config import Config
 import logging
