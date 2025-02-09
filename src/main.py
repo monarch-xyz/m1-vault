@@ -6,7 +6,6 @@ from listeners.onchain_listener import OnChainListener
 from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler
 from utils.logger import logger, start_log_server
 from aiohttp import web
-import argparse
 
 async def healthcheck(request):
     return web.Response(text="OK")
@@ -33,24 +32,18 @@ async def init_app():
     return app
 
 async def main():
-    # Add port argument parsing
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=8000)
-    args = parser.parse_args()
-    
     app = await init_app()
     runner = web.AppRunner(app)
     await runner.setup()
     
-    port = args.port or int(os.getenv("PORT", "8000"))
-    site = web.TCPSite(runner, host='0.0.0.0', port=port)
+    # Get port from Railway environment
+    port = int(os.getenv("PORT", "8000"))
     
-    try:
-        await site.start()
-        print(f"✅ Server running on port {port}")
-    except OSError as e:
-        print(f"❌ Port {port} unavailable: {e}")
-        raise
+    # Explicit host/port binding
+    site = web.TCPSite(runner, host='0.0.0.0', port=port)
+    await site.start()
+    
+    print(f"✅ Server running on 0.0.0.0:{port}")
     
     # Initialize agent with logging capability
     agent = Agent(logger=logger)
@@ -83,10 +76,8 @@ async def main():
         await agent.stop()
     finally:
         # Cleanup
-        await log_site.stop()
-        await log_runner.cleanup()
         for listener in listeners:
             await listener.stop()
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())
