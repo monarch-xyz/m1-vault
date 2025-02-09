@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from aiohttp import web
 import json
+import os
 
 # Configure basic logging
 logging.basicConfig(
@@ -105,9 +106,14 @@ logger = LogService()
 async def start_log_server():
     app = web.Application()
     app.add_routes([web.get('/ws', logger.websocket_handler)])
+    
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8000)
+    
+    # Use Railway's environment variables
+    port = int(os.environ.get("PORT", 8000))  # Railway provides PORT
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    
     await site.start()
     return runner, site
 
