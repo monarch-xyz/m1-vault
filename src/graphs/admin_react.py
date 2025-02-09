@@ -16,7 +16,7 @@ memory = MemorySaver()
 
 tools = [
     # Disable temporary reallocation tool
-    # get_reallocation_tool(),
+    get_reallocation_tool(),
     fetch_vault_market_status,
     fetch_all_morpho_markets,
     add_long_term_memory,

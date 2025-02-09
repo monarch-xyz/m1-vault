@@ -278,6 +278,7 @@ async def fetch_vault_market_status() -> str:
             
             response.append(
                 f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol}"
+                f"\n  ID: {market.uniqueKey}"
                 f"\n  TVL: ${market.state.supplyAssetsUsd:,.2f}"
                 f"\n  Current Supply: {current_supply:,.2f} {market.loanAsset.symbol}"
                 f"\n  Supply Cap: {cap:,.2f} {market.loanAsset.symbol}"
@@ -289,7 +290,7 @@ async def fetch_vault_market_status() -> str:
                 f"\n    Collateral: {market.collateralAsset.address}"
                 f"\n    IRM: {market.irmAddress}"
                 f"\n    Oracle: {market.oracleAddress}"
-                f"\n    LLTV: {market.lltv:.2%}"
+                f"\n    LLTV: {market.lltv}"
             )
             
         # Add other markets section
@@ -306,7 +307,7 @@ async def fetch_vault_market_status() -> str:
                 f"\n    Collateral: {market.collateralAsset.address}"
                 f"\n    IRM: {market.irmAddress}"
                 f"\n    Oracle: {market.oracleAddress}"
-                f"\n    LLTV: {market.lltv:.2%}"
+                f"\n    LLTV: {market.lltv}"
             )
         
         return "\n".join(response)

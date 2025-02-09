@@ -10,62 +10,70 @@ from cdp_langchain.utils import CdpAgentkitWrapper
 from cdp_langchain.tools import CdpTool
 from pydantic import BaseModel, Field
 from pathlib import Path
+from web3 import Web3
+from config import Config
+from decimal import Decimal
+from eth_abi import encode
 
-logger = logging.getLogger(__name__)
-
-# Load Morpho Vault ABI from JSON file
 MORPHO_VAULT_ABI_PATH = Path(__file__).parent.parent / "abi" / "morpho-vault.json"
 with open(MORPHO_VAULT_ABI_PATH) as f:
     MORPHO_VAULT_ABI = json.load(f)
 
+cdp_wrapper = CdpAgentkitWrapper(
+    cdp_api_key_name=os.getenv("CDP_API_KEY_NAME"),
+    cdp_api_key_private_key=os.getenv("CDP_API_PRIVATE_KEY"),
+    network_id=os.getenv("NETWORK_ID"),
+    mnemonic_phrase=os.getenv("MNEMONIC_PHRASE"),
+)
+
+def encode_reallocation(allocations):
+    """Encode reallocate function call manually"""
+    function_selector = Web3.to_bytes(hexstr="0x7299aa31")
+    
+    encoded_allocations = []
+    for allocation in allocations:
+        market_params = allocation['marketParams']
+        encoded_allocation = [
+            Web3.to_checksum_address(market_params['loanToken']),
+            Web3.to_checksum_address(market_params['collateralToken']),
+            Web3.to_checksum_address(market_params['oracle']),
+            Web3.to_checksum_address(market_params['irm']),
+            int(market_params['lltv']),
+            int(allocation['assets'])
+        ]
+        encoded_allocations.append(encoded_allocation)
+
+    encoded_params = encode(
+        ['(address,address,address,address,uint256,uint256)[]'],
+        [encoded_allocations]
+    )
+
+    return function_selector + encoded_params
 
 REALLOCATE_PROMPT = """
 This tool reallocates assets across different markets in the Morpho vault.
 It takes:
 - vault_address: The address of the Morpho Vault
-- allocations: New list of market allocations with allocation amount. For the last market to increase in allocation, simplily put MAX_UINT256 to move all liquidity to this market
+- from_market: The market to move assets from
+- to_market: The market to move assets to
 
 Example:
 ```
-vault_address: 0x346aac1e83239db6a6cb760e95e13258ad3d1a6d
-allocations:
-    Allocation[0]
-    - market_params:
-        loan_token: 0x1234...
-        collateral_token: 0x1234...
-        oracle: 0x1234...
-        irm: 0x1234...
-        lltv: 1000000000000000000 (100%)
-    - assets: 0 (remove assets from this market)
-    Allocation[1]
-    - market_params:
-        loan_token: 0x1234...
-        collateral_token: 0x4444...
-        oracle: 0x1234...
-        irm: 0x1234...
-        lltv: 770000000000000000 (77%)
-    - assets: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' (move all remaining assets to this market)
+vault_address: 0x346AAC1E83239dB6a6cb760e95E13258AD3d1A6d
+from_market:
+    loan_token: 0x1234...
+    collateral_token: 0x1234...
+    oracle: 0x1234...
+    irm: 0x1234...
+    lltv: 860000000000000000 (86%)
+to_market:
+    loan_token: 0x1234...
+    collateral_token: 0x4444...
+    oracle: 0x1234...
+    irm: 0x1234...
+    lltv: 770000000000000000 (77%)
 ```
 """
-
-cdp_wrapper = CdpAgentkitWrapper(
-        cdp_api_key_name=os.getenv("CDP_API_KEY_NAME"),
-        cdp_api_key_private_key=os.getenv("CDP_API_PRIVATE_KEY"),
-        network_id=os.getenv("NETWORK_ID"),
-        mnemonic_phrase=os.getenv("MNEMONIC_PHRASE"),
-    )
-
-class MorphoIsAllocatorInput(BaseModel):
-    """Input schema for Morpho Vault isAllocator action."""
-    
-    address: str = Field(
-        ...,
-        description="The address to check if it's an allocator"
-    )
-    vault_address: str = Field(
-        ...,
-        description="The address of the Morpho Vault to check"
-    )
 
 class MarketParams(BaseModel):
     """Market parameters for Morpho markets."""
@@ -73,79 +81,83 @@ class MarketParams(BaseModel):
     collateral_token: str = Field(..., description="Address of the collateral token")
     oracle: str = Field(..., description="Address of the oracle")
     irm: str = Field(..., description="Address of the interest rate model")
-    lltv: int = Field(..., description="Liquidation LTV (loan-to-value ratio)")
-
-class MarketAllocation(BaseModel):
-    """Market allocation with parameters and amount."""
-    market_params: MarketParams = Field(..., description="Market parameters")
-    assets: int = Field(..., description="Amount of assets to allocate")
+    lltv: str = Field(..., description="Liquidation LTV (loan-to-value ratio)")
 
 class MorphoReallocateInput(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
     vault_address: str = Field(..., description="The address of the Morpho Vault")
-    allocations: list[MarketAllocation] = Field(..., description="List of market allocations")
+    from_market: MarketParams = Field(..., description="The market to move assets from")
+    to_market: MarketParams = Field(..., description="The market to move assets to")
 
 class MorphoSharesInput(BaseModel):
-    """Input schema for getting user shares in Morpho Vault."""
+    """Input schema for Morpho Vault shares action."""
     vault_address: str = Field(..., description="The address of the Morpho Vault")
-    user_address: str = Field(..., description="The address of the user to check shares for")
-
-SHARES_PROMPT = """
-This tool returns the number of shares owned by a user in the Morpho vault.
-It takes:
-- vault_address: The address of the Morpho Vault
-- user_address: The address of the user to check shares for
-
-Example:
-```
-vault_address: 0x346aac1e83239db6a6cb760e95e13258ad3d1a6d
-user_address: 0x1234...
-```
-"""
+    user_address: str = Field(..., description="The address of the user to get shares for")
 
 def reallocate(
     wallet: Wallet,
     vault_address: str,
-    allocations: list[MarketAllocation],
+    from_market: MarketParams,
+    to_market: MarketParams,
 ) -> str:
-    """Reallocate assets across different markets.
-    
-    Args:
-        wallet (Wallet): The wallet to execute the transaction from
-        vault_address (str): The address of the Morpho Vault
-        allocations (list[MarketAllocation]): List of market allocations
-        
-    Returns:
-        str: Transaction status message
-    """
+    """Reallocate assets across different markets."""
     try:
-        # Convert the allocations to the format expected by SDK (tuple)
-        formatted_allocations = [
-            
-            # tuple of loan_token, collateral_token, oracle, irm, lltv
-            [
-                [
-                    alloc["market_params"]["loan_token"],
-                    alloc["market_params"]["collateral_token"],
-                    alloc["market_params"]["oracle"],
-                    alloc["market_params"]["irm"],
-                    alloc["market_params"]["lltv"],
-                ],
-                alloc["assets"]
-            ] for alloc in allocations
+        # Format allocations
+        allocations = [
+            {
+                'marketParams': {
+                    'loanToken': from_market["loan_token"],
+                    'collateralToken': from_market["collateral_token"],
+                    'oracle': from_market["oracle"],
+                    'irm': from_market["irm"],
+                    'lltv': from_market["lltv"],
+                },
+                'assets': 0
+            },
+            {
+                'marketParams': {
+                    'loanToken': to_market["loan_token"],
+                    'collateralToken': to_market["collateral_token"],
+                    'oracle': to_market["oracle"],
+                    'irm': to_market["irm"],
+                    'lltv': to_market["lltv"],
+                },
+                'assets': 2**256 - 1  # MAX_UINT256
+            }
         ]
 
-        # convert to json
+        print("allocations", allocations)
+
+        # Encode reallocation call
+        calldata = encode_reallocation(allocations)
+
+        print("calldata", calldata.hex())
         
-        tx = wallet.invoke_contract(
+        # Send via multicall
+        invocation = wallet.invoke_contract(
             contract_address=vault_address,
-            method="reallocate",
+            method="multicall",
             abi=MORPHO_VAULT_ABI,
-            args={"allocations": formatted_allocations}
+            args={"data": [calldata.hex()]}
         )
-        return f"Reallocation transaction submitted: {tx.hash}"
+        
+        return f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash} and transaction link: {invocation.transaction_link}"
     except Exception as e:
-        return f"Error during reallocation: {e!s}"
+        print("Error during reallocation", e)
+        return "Error during reallocation. Don't retry"
+
+SHARES_PROMPT = """
+This tool gets the number of shares owned by a user in the Morpho vault.
+It takes:
+- vault_address: The address of the Morpho Vault
+- user_address: The address of the user to get shares for
+
+Example:
+```
+vault_address: 0x346AAC1E83239dB6a6cb760e95E13258AD3d1A6d
+user_address: 0x1234...
+```
+"""
 
 def get_user_shares(
     wallet: Wallet,
@@ -221,10 +233,9 @@ def setup_cdp_toolkit():
             func=get_user_shares,
         )
         
-        tools.extend([isAllocatorTool, reallocateTool, sharesTool])
+        tools.extend([reallocateTool, sharesTool])
 
-        logger.info("CDP toolkit initialized successfully.")
         return tools
     except ValueError as e:
-        logger.error(f"Failed to initialize CDP toolkit: {str(e)}")
+        print(f"Failed to initialize CDP toolkit: {str(e)}")
         return None

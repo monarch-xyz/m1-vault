@@ -1,10 +1,10 @@
-# M1 Vault Agent 
+# Wowo Agent 
 
-M1 Vault Agent is an autonomous agent designed to manage Morpho Protocol vaults through a combination of on-chain monitoring, user interactions, and admin controls. The agent serves as a reallocator in the Morpho Vault, helping to optimize vault strategies and manage positions.
+Wowo Agent is an autonomous agent designed to manage Morpho Protocol vaults through a combination of on-chain monitoring, user interactions, and admin controls. The agent serves as a reallocator in the Morpho Vault, helping to optimize vault strategies and manage positions.
 
 ## Core Capabilities
 
-- 🛰️ Monitor on-chain events for Morpho Protocol
+- 🛰️ Monitor on-chain events for relevant morpho markets
 - 📥 Process user messages when they deposit/withdraw from the vault
 - 🛡️ Handle admin commands
 - 📊 Perform market analysis and risk assessment
@@ -12,12 +12,15 @@ M1 Vault Agent is an autonomous agent designed to manage Morpho Protocol vaults 
 
 ## Tech Stack
 
-- **LangGraph** - (Event processing workflows)
-- **Coinbase CDP** - ()
-- **BaseChain** - ()
-- **AskBrian** - ()
+- **LangGraph** - All LLM interactions, including 2 ReAct agents with tools
+- **Coinbase CDP** - All onchain interactions
+- **BaseChain** - All on-chain interactions happens on BaseChain
+- **AskBrian** - Extend knowledge base
 
 ## Architecture
+
+![](./docs/architecture.png)
+
 See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details
 
 ## Running the project

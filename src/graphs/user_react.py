@@ -4,7 +4,7 @@ from langgraph.prebuilt import create_react_agent
 
 from pydantic import BaseModel
 from config import Config
-from utils import get_reallocation_tool, get_user_shares_tool
+from utils import get_user_shares_tool
 import json
 from utils.market import fetch_all_morpho_markets, fetch_vault_market_status, VAULT_ADDRESS
 from utils.memory import add_long_term_memory, get_long_term_memory
@@ -15,7 +15,6 @@ from langgraph.checkpoint.memory import MemorySaver
 memory = MemorySaver()
 
 tools = [
-    get_reallocation_tool(),
     get_user_shares_tool(),
     fetch_vault_market_status,
     fetch_all_morpho_markets,
