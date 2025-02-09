@@ -8,14 +8,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Install Python dependencies first for caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+# Copy entire project
 COPY . .
 
-# Install the package
-RUN pip install -e .
+# Set Python path to include src directory
+ENV PYTHONPATH="${PYTHONPATH}:/app/src"
 
-CMD ["start-bot"]
+# Run directly without installation
+CMD ["python", "src/main.py"]
