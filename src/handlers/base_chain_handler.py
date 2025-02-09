@@ -65,9 +65,11 @@ class BaseChainEventHandler(BaseHandler):
                     except ValueError:
                         return
 
+                formated_assets = f"{assets / 10**6:.2f} USDC"
+
                 await self.logger.think("Chain Event", {
-                    "type": 'tracked_market_event',
-                    "thought": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}",
+                    "type": 'live_event',
+                    "thought": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}, {formated_assets} USDC",
                     "market": {
                         "id": market_id,
                         "name": market.display_name,

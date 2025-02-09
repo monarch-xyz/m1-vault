@@ -18,17 +18,12 @@ MORPHO_VAULT_ABI_PATH = Path(__file__).parent.parent / "abi" / "morpho-vault.jso
 with open(MORPHO_VAULT_ABI_PATH) as f:
     MORPHO_VAULT_ABI = json.load(f)
 
-IS_ALLOCATOR_PROMPT = """
-This tool checks if an address is an allocator in the Morpho vault.
-It takes:
-- address: The address to check (e.g. 0x1234...)
-"""
 
 REALLOCATE_PROMPT = """
 This tool reallocates assets across different markets in the Morpho vault.
 It takes:
 - vault_address: The address of the Morpho Vault
-- allocations: New list of market allocations with their parameters and new asset amount. For the last market which is a "supply" (increase in asset), simplily put MAX_UINT256 to move remaining to this market
+- allocations: New list of market allocations with allocation amount. For the last market to increase in allocation, simplily put MAX_UINT256 to move all liquidity to this market
 
 Example:
 ```
@@ -40,7 +35,7 @@ allocations:
         collateral_token: 0x1234...
         oracle: 0x1234...
         irm: 0x1234...
-        lltv: 1000000000000000000
+        lltv: 1000000000000000000 (100%)
     - assets: 0 (remove assets from this market)
     Allocation[1]
     - market_params:
@@ -48,7 +43,7 @@ allocations:
         collateral_token: 0x4444...
         oracle: 0x1234...
         irm: 0x1234...
-        lltv: 1000000000000000000
+        lltv: 770000000000000000 (77%)
     - assets: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' (move all remaining assets to this market)
 ```
 """
@@ -107,33 +102,6 @@ vault_address: 0x346aac1e83239db6a6cb760e95e13258ad3d1a6d
 user_address: 0x1234...
 ```
 """
-
-def check_is_allocator(
-    wallet: Wallet,
-    vault_address: str,
-    address: str,
-) -> str:
-    """Check if address is an allocator in Morpho vault.
-    
-    Args:
-        wallet (Wallet): The wallet to execute the check from
-        vault_address (str): The address of the Morpho Vault
-        address (str): The address to check
-        
-    Returns:
-        str: Message indicating if address is an allocator
-    """
-    try:
-        is_allocator = SmartContract.read(
-            network_id=wallet.network_id,
-            contract_address=vault_address,
-            method="isAllocator",
-            abi=MORPHO_VAULT_ABI,
-            args={"": address}
-        )
-        return f"The address {address} is{' ' if is_allocator else ' not '}an allocator"
-    except Exception as e:
-        return f"Error checking allocator status: {e!s}"
 
 def reallocate(
     wallet: Wallet,
@@ -236,15 +204,6 @@ def setup_cdp_toolkit():
     try:
         cdp_toolkit = CdpToolkit.from_cdp_agentkit_wrapper(cdp_wrapper)
         tools = cdp_toolkit.get_tools()
-
-        # Add custom tools
-        isAllocatorTool = CdpTool(
-            name="morpho_is_allocator",
-            description=IS_ALLOCATOR_PROMPT,
-            cdp_agentkit_wrapper=cdp_wrapper,
-            args_schema=MorphoIsAllocatorInput,
-            func=check_is_allocator,
-        )
         
         reallocateTool = CdpTool(
             name="morpho_reallocate",
