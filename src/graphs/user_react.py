@@ -8,7 +8,8 @@ from utils import get_reallocation_tool, get_user_shares_tool
 import json
 from utils.market import fetch_all_morpho_markets, fetch_vault_market_status, VAULT_ADDRESS
 from utils.memory import add_long_term_memory, get_long_term_memory
-from .model_util import get_llm, ModelType
+from utils.model_util import get_llm
+from utils.reasoning import market_analysis
 
 from langgraph.checkpoint.memory import MemorySaver
 memory = MemorySaver()
@@ -19,6 +20,7 @@ tools = [
     fetch_vault_market_status,
     fetch_all_morpho_markets,
     get_long_term_memory,
+    market_analysis,
 ]
 
 # use cheaper model for user interaction
