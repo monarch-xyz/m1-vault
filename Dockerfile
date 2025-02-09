@@ -1,4 +1,4 @@
-FROM python:3.10.10-slim-bookworm
+FROM python:3.10.16-bookworm
 
 # Install system dependencies with updated SQLite
 RUN apt-get update && apt-get install -y \
