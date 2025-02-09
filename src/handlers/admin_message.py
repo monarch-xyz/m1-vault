@@ -11,7 +11,7 @@ class AdminMessageHandler(BaseHandler):
 
     def __init__(self, agent, logger: LogService):
         super().__init__(agent)
-        self.agent = react_agent
+        self.llm = react_agent
         self.logger = logger
 
         print(f"AdminMessageHandler initialized")
@@ -44,9 +44,9 @@ class AdminMessageHandler(BaseHandler):
 
     async def _process_admin_command(self, message: TelegramMessage):
         # Process through the graph
-        state = await self.agent.ainvoke({
+        state = await self.llm.ainvoke({
             "messages": [HumanMessage(content=message.text)]
-        })
+        }, config={"configurable": {"thread_id": "admin_chat"}})
         
         return state['messages'][-1].content
 

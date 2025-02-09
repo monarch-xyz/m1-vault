@@ -1,21 +1,62 @@
+from models.events import EventType, BaseEvent
+from models.messages import TelegramMessage, ChainMessage
 from .base_handler import BaseHandler
-from models.events import EventType
+from graphs.user_react import react_agent
+from langchain_core.messages import HumanMessage
+from utils import send_telegram_message_async
 from utils.logger import LogService
-from models.messages import ChainMessage
+
+
 class UserMessageHandler(BaseHandler):
+    """Entry point to handle user messages (from telegram or onchain)"""
 
     def __init__(self, agent, logger: LogService):
         super().__init__(agent)
-        self.agent = agent
+        self.llm = react_agent
         self.logger = logger
+        print(f"UserMessageHandler initialized")
 
     @property
     def subscribes_to(self):
         return [EventType.USER_MESSAGE]
 
-    async def handle(self, event: ChainMessage):
-        print(f"User message received: {event}") 
-        await self.logger.conversation("User Message", {
-            "from": "user",
-            "text": event.data.text
-        })
+    async def handle(self, event: BaseEvent):
+        try:
+            # Log the incoming message
+            if isinstance(event.data, ChainMessage):
+                await self.logger.conversation("User Message", {
+                    "from": "user",
+                    "text": event.data.text,
+                    "tx": event.data.transaction_hash,
+                    "sender": event.data.sender
+                })
+
+                # pass in a more detailed message to the agent, to access sender 
+                message_text = "TEXT: {text} \n======\n USER_ID: {sender}".format(text=event.data.text, sender=event.data.sender)
+                chat_id = event.data.sender
+
+            else:
+                print("Unknown message type!!!")
+                return
+            
+
+            # Process through the user react graph
+            config = {"configurable": {"thread_id": "user_public_chat"}}
+
+
+            state = await self.llm.ainvoke({
+                "messages": [
+                    HumanMessage(content=message_text)
+                ]
+            }, config=config)
+            
+            response = state['messages'][-1].content
+
+            # Log the agent's response
+            await self.logger.conversation("Agent Response", {
+                "from": "agent",
+                "text": response
+            })
+
+        except Exception as e:
+            await self.logger.error("UserMessageHandler", str(e))

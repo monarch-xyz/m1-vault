@@ -9,58 +9,14 @@ from cdp_langchain.agent_toolkits import CdpToolkit
 from cdp_langchain.utils import CdpAgentkitWrapper
 from cdp_langchain.tools import CdpTool
 from pydantic import BaseModel, Field
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-MORPHO_VAULT_ABI = [
-    {
-        "type": "function",
-        "name": "isAllocator",
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "reallocate",
-        "inputs": [
-            {
-                "internalType": "struct MarketAllocation[]",
-                "name": "allocations",
-                "type": "tuple[]",
-                "components": [
-                    {
-                        "internalType": "struct MarketParams",
-                        "name": "marketParams",
-                        "type": "tuple",
-                        "components": [
-                            { "internalType": "address", "name": "loanToken", "type": "address" },
-                            { "internalType": "address", "name": "collateralToken", "type": "address" },
-                            { "internalType": "address", "name": "oracle", "type": "address" },
-                            { "internalType": "address", "name": "irm", "type": "address" },
-                            { "internalType": "uint256", "name": "lltv", "type": "uint256" }
-                        ]
-                    },
-                    { "internalType": "uint256", "name": "assets", "type": "uint256" }
-                ]
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    }
-]
+# Load Morpho Vault ABI from JSON file
+MORPHO_VAULT_ABI_PATH = Path(__file__).parent.parent / "abi" / "morpho-vault.json"
+with open(MORPHO_VAULT_ABI_PATH) as f:
+    MORPHO_VAULT_ABI = json.load(f)
 
 IS_ALLOCATOR_PROMPT = """
 This tool checks if an address is an allocator in the Morpho vault.
@@ -95,9 +51,14 @@ allocations:
         lltv: 1000000000000000000
     - assets: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' (move all remaining assets to this market)
 ```
-
-
 """
+
+cdp_wrapper = CdpAgentkitWrapper(
+        cdp_api_key_name=os.getenv("CDP_API_KEY_NAME"),
+        cdp_api_key_private_key=os.getenv("CDP_API_PRIVATE_KEY"),
+        network_id=os.getenv("NETWORK_ID"),
+        mnemonic_phrase=os.getenv("MNEMONIC_PHRASE"),
+    )
 
 class MorphoIsAllocatorInput(BaseModel):
     """Input schema for Morpho Vault isAllocator action."""
@@ -128,6 +89,24 @@ class MorphoReallocateInput(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
     vault_address: str = Field(..., description="The address of the Morpho Vault")
     allocations: list[MarketAllocation] = Field(..., description="List of market allocations")
+
+class MorphoSharesInput(BaseModel):
+    """Input schema for getting user shares in Morpho Vault."""
+    vault_address: str = Field(..., description="The address of the Morpho Vault")
+    user_address: str = Field(..., description="The address of the user to check shares for")
+
+SHARES_PROMPT = """
+This tool returns the number of shares owned by a user in the Morpho vault.
+It takes:
+- vault_address: The address of the Morpho Vault
+- user_address: The address of the user to check shares for
+
+Example:
+```
+vault_address: 0x346aac1e83239db6a6cb760e95e13258ad3d1a6d
+user_address: 0x1234...
+```
+"""
 
 def check_is_allocator(
     wallet: Wallet,
@@ -200,14 +179,39 @@ def reallocate(
     except Exception as e:
         return f"Error during reallocation: {e!s}"
 
-def get_reallocation_tool():
-    cdp_wrapper = CdpAgentkitWrapper(
-        cdp_api_key_name=os.getenv("CDP_API_KEY_NAME"),
-        cdp_api_key_private_key=os.getenv("CDP_API_PRIVATE_KEY"),
-        network_id=os.getenv("NETWORK_ID"),
-        mnemonic_phrase=os.getenv("MNEMONIC_PHRASE"),
-    )
+def get_user_shares(
+    wallet: Wallet,
+    vault_address: str,
+    user_address: str,
+) -> str:
+    """Get the number of shares owned by a user in the Morpho vault."""
+    try:
+        # Read balanceOf from the vault contract
+        shares = SmartContract.read(
+            network_id=wallet.network_id,
+            contract_address=vault_address,
+            method="balanceOf",
+            abi=MORPHO_VAULT_ABI,
+            args={"account": user_address}
+        )
+        
+        # Get decimals for proper formatting
+        decimals = SmartContract.read(
+            network_id=wallet.network_id,
+            contract_address=vault_address,
+            method="decimals",
+            abi=MORPHO_VAULT_ABI,
+            args={}
+        )
+        
+        # Format shares with proper decimals
+        shares_formatted = shares / (10 ** decimals)
+        
+        return f"User {user_address} owns {shares_formatted:,.6f} vault shares"
+    except Exception as e:
+        return f"Error checking user shares: {str(e)}"
 
+def get_reallocation_tool():
     reallocate_tool = CdpTool(
         name="morpho_reallocate",
         description=REALLOCATE_PROMPT,
@@ -218,16 +222,18 @@ def get_reallocation_tool():
 
     return reallocate_tool
 
+def get_user_shares_tool():
+    return CdpTool(
+        name="morpho_get_shares",
+        description=SHARES_PROMPT,
+        cdp_agentkit_wrapper=cdp_wrapper,
+        args_schema=MorphoSharesInput,
+        func=get_user_shares,
+    )
+    
 def setup_cdp_toolkit():
     """Initialize CDP toolkit with credentials from environment."""
     try:
-        cdp_wrapper = CdpAgentkitWrapper(
-            cdp_api_key_name=os.getenv("CDP_API_KEY_NAME"),
-            cdp_api_key_private_key=os.getenv("CDP_API_PRIVATE_KEY"),
-            network_id=os.getenv("NETWORK_ID"),
-            mnemonic_phrase=os.getenv("MNEMONIC_PHRASE"),
-        )
-
         cdp_toolkit = CdpToolkit.from_cdp_agentkit_wrapper(cdp_wrapper)
         tools = cdp_toolkit.get_tools()
 
@@ -248,7 +254,15 @@ def setup_cdp_toolkit():
             func=reallocate,
         )
         
-        tools.extend([isAllocatorTool, reallocateTool])
+        sharesTool = CdpTool(
+            name="morpho_get_shares",
+            description=SHARES_PROMPT,
+            cdp_agentkit_wrapper=cdp_wrapper,
+            args_schema=MorphoSharesInput,
+            func=get_user_shares,
+        )
+        
+        tools.extend([isAllocatorTool, reallocateTool, sharesTool])
 
         logger.info("CDP toolkit initialized successfully.")
         return tools
