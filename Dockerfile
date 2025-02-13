@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt pysqlite3-binary
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Force Python to use pysqlite3 instead of system sqlite3
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libsqlite3.so.0
