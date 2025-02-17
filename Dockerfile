@@ -20,6 +20,9 @@ ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libsqlite3.so.0
 # Copy application code
 COPY . .
 
+# Copy environment file
+COPY .env .
+
 # Set Python path
 ENV PYTHONPATH="/app:/app/src"
 
