@@ -24,6 +24,7 @@ async def init_app():
     app = web.Application()
     
     # Add healthcheck route
+    app.add_routes([web.get('/', healthcheck)])
     app.add_routes([web.get('/health', healthcheck)])
     
     # Initialize logging WebSocket
