@@ -25,25 +25,31 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details
 
 ## Running the project
 
-1. Install environment and dependencies
+### 1. Install environment and dependencies
 
 ```
 pip install -r requirements.txt
 ```
 
-2. run a local docker container of vector store (chroma)
+### 2. run a local docker container of vector store (chroma)
 
+if you don't have the image, pull it once
+```
+docker pull chromadb/chroma
+```
+
+run the container
 ```
 docker run -p 8001:8000 chromadb/chroma
 ```
 
-3. Initialize some knowledge into local vector store
+### 3. Initialize some knowledge into local vector store
 
 ```
 python scripts/init_morpho_knowledge.py
 ```
 
-4. Run the Agent
+### 4. Run the Agent
 
 ```
 python src/main.py
