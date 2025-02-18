@@ -31,13 +31,19 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details
 pip install -r requirements.txt
 ```
 
-2. Initialize some knowledge into local vector store
+2. run a local docker container of vector store (chroma)
+
+```
+docker run -p 8001:8000 chromadb/chroma
+```
+
+3. Initialize some knowledge into local vector store
 
 ```
 python scripts/init_morpho_knowledge.py
 ```
 
-3. Run the Agent
+4. Run the Agent
 
 ```
 python src/main.py
