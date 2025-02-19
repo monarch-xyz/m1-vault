@@ -3,14 +3,24 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_core.tools import tool
 from config import Config
 from langchain_core.documents import Document
+import os
+import chromadb
 
 # same instance as the one in main.py
 from utils.logger import logger
 
+# Initialize Chroma client
+chroma_client = chromadb.HttpClient(
+    host=os.getenv("VECTOR_DB_URL"),
+    port=os.getenv("VECTOR_DB_PORT")
+)
+chroma_client.get_or_create_collection("long_term_memory")
+
+# Initialize vector store
 long_term_memory = Chroma(
+    client=chroma_client,
     collection_name="long_term_memory",
     embedding_function=OpenAIEmbeddings(openai_api_key=Config.OPENAI_API_KEY),
-    persist_directory="data/long_term_memory",
 )
 
 @tool

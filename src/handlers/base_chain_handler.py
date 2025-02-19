@@ -1,7 +1,8 @@
 from .base_handler import BaseHandler
 from models.events import EventType
-from utils.logger import LogService
+from utils.logger import LogService, LogCategory
 from utils.market import get_vault_allocations, MarketInfo
+from utils.supabase import SupabaseClient
 import asyncio
 from typing import Dict
 
@@ -67,9 +68,12 @@ class BaseChainEventHandler(BaseHandler):
 
                 formated_assets = f"{assets / 10**6:.2f} USDC"
 
-                await self.logger.think("Chain Event", {
-                    "type": 'live_event',
-                    "thought": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}, {formated_assets} USDC",
+                thought = {
+                    "type": LogCategory.THINK,
+                    "text": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}, {formated_assets} USDC"
+                }
+
+                event_data = {
                     "market": {
                         "id": market_id,
                         "name": market.display_name,
@@ -83,7 +87,15 @@ class BaseChainEventHandler(BaseHandler):
                         "assets": event.data.get('assets'),
                         "shares": event.data.get('shares')
                     }
-                })
+                }
+                
+                # Store thought in Supabase
+                await SupabaseClient.store_memories(thought)
+                await SupabaseClient.store_onchain_events(event_data)
+
+                # Log the event
+                event_data.update({"type": "live_event"})
+                await self.logger.think("Chain Event", event_data)
                 
         except Exception as e:
             await self.logger.error("ChainHandler", str(e))
