@@ -45,3 +45,14 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error storing message: {e}")
             raise
+
+    @classmethod
+    async def store_thoughts(cls, data: dict):
+        """Store thoughts in the thoughts table"""
+        try:
+            client = cls.get_client()
+            result = client.table('thoughts').insert(data).execute()
+            return result
+        except Exception as e:
+            print(f"Error storing thoughts: {e}")
+            raise

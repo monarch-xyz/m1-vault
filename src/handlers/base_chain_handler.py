@@ -68,8 +68,11 @@ class BaseChainEventHandler(BaseHandler):
 
                 formated_assets = f"{assets / 10**6:.2f} USDC"
 
+                thought = {
+                    "text": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}, {formated_assets} USDC"
+                }
+
                 event_data = {
-                    "thought": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}, {formated_assets} USDC",
                     "market": {
                         "id": market_id,
                         "name": market.display_name,
@@ -85,7 +88,8 @@ class BaseChainEventHandler(BaseHandler):
                     }
                 }
                 
-                # Store event in Supabase
+                # Store thought in Supabase
+                await SupabaseClient.store_thoughts(thought)
                 await SupabaseClient.store_onchain_events(event_data)
 
                 # Log the event
