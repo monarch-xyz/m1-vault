@@ -1,6 +1,6 @@
 from .base_handler import BaseHandler
 from models.events import EventType
-from utils.logger import LogService
+from utils.logger import LogService, LogCategory
 from utils.market import get_vault_allocations, MarketInfo
 from utils.supabase import SupabaseClient
 import asyncio
@@ -69,6 +69,7 @@ class BaseChainEventHandler(BaseHandler):
                 formated_assets = f"{assets / 10**6:.2f} USDC"
 
                 thought = {
+                    "type": LogCategory.THINK,
                     "text": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}, {formated_assets} USDC"
                 }
 
@@ -89,7 +90,7 @@ class BaseChainEventHandler(BaseHandler):
                 }
                 
                 # Store thought in Supabase
-                await SupabaseClient.store_thoughts(thought)
+                await SupabaseClient.store_memories(thought)
                 await SupabaseClient.store_onchain_events(event_data)
 
                 # Log the event

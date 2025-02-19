@@ -47,12 +47,12 @@ class SupabaseClient:
             raise
 
     @classmethod
-    async def store_thoughts(cls, data: dict):
-        """Store thoughts in the thoughts table"""
+    async def store_memories(cls, data: dict):
+        """Store memories in the memories table"""
         try:
             client = cls.get_client()
-            result = client.table('thoughts').insert(data).execute()
+            result = client.table('memories').insert(data).execute()
             return result
         except Exception as e:
-            print(f"Error storing thoughts: {e}")
+            print(f"Error storing memories: {e}")
             raise
