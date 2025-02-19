@@ -5,6 +5,7 @@ from listeners.telegram_listener import TelegramListener
 from listeners.onchain_listener import OnChainListener
 from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler
 from utils.logger import logger, start_log_server
+from utils.supabase import SupabaseClient
 from aiohttp import web
 
 async def healthcheck(request):
@@ -36,6 +37,9 @@ async def main():
     app = await init_app()
     runner = web.AppRunner(app)
     await runner.setup()
+    
+    # Initialize Supabase client
+    SupabaseClient.init()
     
     # Get port from Railway environment
     port = int(os.getenv("PORT", "8000"))
