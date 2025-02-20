@@ -18,7 +18,7 @@ class BaseEventProcessor:
         self.event_bus = event_bus
         self.logger = logger
         self.web3 = web3
-        self.event_types = []  # ['Deposit', 'Withdraw']
+        self.event_types = []
 
     async def process_blocks(self, from_block: int, to_block: int):
         """Process events in block range (to be implemented per contract)"""

@@ -7,6 +7,10 @@ import asyncio
 from typing import Dict
 
 class BaseChainEventHandler(BaseHandler):
+    """
+    We process all on-chain events, and store them in Supabase
+    """
+
     def __init__(self, agent, logger: LogService):
         super().__init__(agent)
         self.logger = logger
@@ -45,57 +49,49 @@ class BaseChainEventHandler(BaseHandler):
         if not self.tracked_markets:
             return
 
+        print("handle event", event.data.get('evm_event'))
+        print("source", event.data.get('source'))
+
         try:
+            # Pass vault events
+            if event.data.get('source') == "morpho_vault":
+                return
+
             # Extract and normalize market_id from the event
             raw_market_id = event.data.get('market_id')
+            print("raw_market_id", raw_market_id)
+
             if not raw_market_id:
                 return
                 
             market_id = self._normalize_market_id(raw_market_id)
             
             # Only process events for markets we care about
-            if market_id in self.tracked_markets:
-                market = self.tracked_markets[market_id]
-                
-                # only handle morpho_blue event, with asset > 100000
-                if event.source == "morpho_blue":
-                    try:
-                        assets = int(event.data.get('assets', '0'))
-                        if assets < 10_000000:  # Skip small transactions
-                            return
-                    except ValueError:
-                        return
+            if market_id not in self.tracked_markets:
+                print("market_id not in tracked_markets", market_id)
+                return
+            
+            try:
+                assets = int(event.data.get('assets', '0'))
+                if assets < 10_000000:  # Skip small transactions
+                    return
+            except ValueError:
+                return
 
-                formated_assets = f"{assets / 10**6:.2f} USDC"
-
-                thought = {
-                    "type": LogCategory.THINK,
-                    "text": f"Onchain event: {event.data.get('evm_event')} event for {market.display_name}, {formated_assets} USDC"
+            event_data = {
+                "market": market_id,
+                "event": event.data.get('evm_event'),
+                "amount": assets,
+                "data": {
+                    "tx_hash": event.data.get('tx_hash'),
+                    "caller": event.data.get('caller'),
+                    "assets": event.data.get('assets'),
+                    "shares": event.data.get('shares')
                 }
+            }
 
-                event_data = {
-                    "market": {
-                        "id": market_id,
-                        "name": market.display_name,
-                        "loan": market.loan_symbol,
-                        "collateral": market.collateral_symbol,
-                        "lltv": market.lltv
-                    },
-                    "data": {
-                        "tx_hash": event.data.get('tx_hash'),
-                        "caller": event.data.get('caller'),
-                        "assets": event.data.get('assets'),
-                        "shares": event.data.get('shares')
-                    }
-                }
-                
-                # Store thought in Supabase
-                await SupabaseClient.store_memories(thought)
-                await SupabaseClient.store_onchain_events(event_data)
-
-                # Log the event
-                event_data.update({"type": "live_event"})
-                await self.logger.think("Chain Event", event_data)
+            # Store thought in Supabase
+            await SupabaseClient.store_onchain_events(event_data)
                 
         except Exception as e:
             await self.logger.error("ChainHandler", str(e))
