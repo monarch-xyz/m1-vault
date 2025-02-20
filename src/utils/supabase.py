@@ -83,3 +83,14 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error fetching filtered events: {str(e)}")
             return None
+
+    @classmethod
+    async def store_market_snapshot(cls, data: dict):
+        """Store market snapshot in the market-snapshots table"""
+        try:
+            client = cls.get_client()
+            result = client.table('market-snapshots').insert(data).execute()
+            return result
+        except Exception as e:
+            print(f"Error storing market snapshot: {e}")
+            raise
