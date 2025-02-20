@@ -54,8 +54,10 @@ REALLOCATE_PROMPT = """
 This tool reallocates assets across different markets in the Morpho vault.
 It takes:
 - vault_address: The address of the Morpho Vault
-- from_market: The market to move assets from
-- to_market: The market to move assets to
+- from_markets: The markets to move assets from
+- from_markets_assets: The exact amount of assets with decimal to move from each market (in the same order as from_markets)
+- to_markets: The markets to move assets to
+- to_markets_assets: The exact amount of assets with decimal to move to each market (in the same order as to_markets)
 
 Example:
 ```
@@ -66,12 +68,14 @@ from_market:
     oracle: 0x1234...
     irm: 0x1234...
     lltv: 860000000000000000 (86%)
+from_market_assets: [100000000, 200000000] (100 USDC, 200 USDC)
 to_market:
     loan_token: 0x1234...
     collateral_token: 0x4444...
     oracle: 0x1234...
     irm: 0x1234...
     lltv: 770000000000000000 (77%)
+to_market_assets: [100000000, 200000000] (100 USDC, 200 USDC)
 ```
 """
 
@@ -86,8 +90,10 @@ class MarketParams(BaseModel):
 class MorphoReallocateInput(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
     vault_address: str = Field(..., description="The address of the Morpho Vault")
-    from_market: MarketParams = Field(..., description="The market to move assets from")
-    to_market: MarketParams = Field(..., description="The market to move assets to")
+    from_markets: list[MarketParams] = Field(..., description="The markets to move assets from")
+    from_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to move from each market")
+    to_markets: list[MarketParams] = Field(..., description="The markets to move assets to")
+    to_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to move to each market")
 
 class MorphoSharesInput(BaseModel):
     """Input schema for Morpho Vault shares action."""
@@ -97,14 +103,18 @@ class MorphoSharesInput(BaseModel):
 def reallocate(
     wallet: Wallet,
     vault_address: str,
-    from_market: MarketParams,
-    to_market: MarketParams,
+    from_markets: list[MarketParams],
+    from_markets_assets: list[int],
+    to_markets: list[MarketParams],
+    to_markets_assets: list[int],
 ) -> str:
     """Reallocate assets across different markets."""
     try:
         # Format allocations
-        allocations = [
-            {
+        allocations = []
+        
+        for from_market, from_assets in zip(from_markets, from_markets_assets):
+            allocations.append({
                 'marketParams': {
                     'loanToken': from_market["loan_token"],
                     'collateralToken': from_market["collateral_token"],
@@ -112,9 +122,11 @@ def reallocate(
                     'irm': from_market["irm"],
                     'lltv': from_market["lltv"],
                 },
-                'assets': 0
-            },
-            {
+                'assets': from_assets
+            })
+        
+        for to_market, to_assets in zip(to_markets, to_markets_assets):
+            allocations.append({
                 'marketParams': {
                     'loanToken': to_market["loan_token"],
                     'collateralToken': to_market["collateral_token"],
@@ -122,9 +134,8 @@ def reallocate(
                     'irm': to_market["irm"],
                     'lltv': to_market["lltv"],
                 },
-                'assets': 2**256 - 1  # MAX_UINT256
-            }
-        ]
+                'assets': 2**256 - 1 if to_market == to_markets[-1] else to_assets
+            })
 
         print("allocations", allocations)
 
