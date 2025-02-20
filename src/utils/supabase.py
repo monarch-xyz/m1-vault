@@ -1,7 +1,7 @@
 import os
 from supabase import create_client, Client
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class SupabaseClient:
     _instance: Optional[Client] = None
@@ -64,21 +64,22 @@ class SupabaseClient:
         try:
             client = cls.get_client()
             
-            # Calculate time range
-            end_time = datetime.now()
+            # Calculate time range with explicit timezone format
+            end_time = datetime.now(timezone.utc)
             start_time = end_time - timedelta(hours=hours_ago)
             
-            # Fetch events
+            # Format timestamps to match exactly how they're stored
+            start_str = start_time.strftime('%Y-%m-%dT%H:%M:%S.%f+00:00')
+            end_str = end_time.strftime('%Y-%m-%dT%H:%M:%S.%f+00:00')
+            
             response = client.table('onchain-events') \
                 .select('*') \
-                .gte('created_at', start_time.isoformat()) \
-                .lte('created_at', end_time.isoformat()) \
+                .gte('created_at', start_str) \
+                .lte('created_at', end_str) \
                 .execute()
-                
-            print(f"Fetched {len(response.data)} events")
-
+            
             return response.data
 
         except Exception as e:
-            print(f"Error fetching filtered events: {e}")
+            print(f"Error fetching filtered events: {str(e)}")
             return None

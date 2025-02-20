@@ -18,14 +18,15 @@ class PeriodicRiskHandler(BaseHandler):
     async def handle(self, event):
         """Handle periodic risk update events"""
         try:
-            print(f"\n=== Market Risk Update at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
-            
             # Fetch last 1 hours of market events
             market_events = await SupabaseClient.get_filtered_market_events(hours_ago=1)
             
             # Calculate and format operations
             data = self.calculate_market_operations(market_events)
-            self.format_market_operations(data)
+            summary = self.format_market_operations(data)
+            
+            # Log the summary
+            print("[PeriodicRiskHandler] ", summary)
             
         except Exception as e:
             await self.logger.error("PeriodicRiskHandler", f"Error in risk update: {str(e)}")
@@ -75,19 +76,26 @@ class PeriodicRiskHandler(BaseHandler):
 
     @staticmethod
     def format_market_operations(data):
-        """Format operations data for display"""
+        """Format operations data into a text summary for LLM consumption"""
         if not data:
-            print("No market operations in this period")
-            return
+            return "No market operations detected in this period."
         
-        print("\n=== Market Operations ===")
+        summary_lines = ["Market Operations Summary:"]
+        
         for market in data['breakdown']:
             operations = []
             for op_type in ['supply', 'withdraw', 'borrow', 'repay']:
                 if market[op_type] > 0:
                     operations.append(f"{op_type}: {market[op_type]:,.2f} USDC")
             
-            if operations:  # Only show markets with operations
-                print(f"\nMarket: {market['id']}")
-                for op in operations:
-                    print(f"- {op}") 
+            if operations:
+                summary_lines.append(f"\nMarket {market['id']}:")
+                summary_lines.extend([f"- {op}" for op in operations])
+        
+        # Add accumulated totals
+        summary_lines.append("\nAccumulated Totals:")
+        for op_type, amount in data['accumulated'].items():
+            if amount > 0:
+                summary_lines.append(f"Total {op_type}: {amount:,.2f} USDC")
+        
+        return "\n".join(summary_lines) 
