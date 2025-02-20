@@ -1,6 +1,7 @@
 import os
 from supabase import create_client, Client
 from typing import Optional
+from datetime import datetime, timedelta
 
 class SupabaseClient:
     _instance: Optional[Client] = None
@@ -56,3 +57,28 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error storing memories: {e}")
             raise
+
+    @classmethod
+    async def get_filtered_market_events(cls, hours_ago: int = 1):
+        """Get filtered events from the last N hours"""
+        try:
+            client = cls.get_client()
+            
+            # Calculate time range
+            end_time = datetime.now()
+            start_time = end_time - timedelta(hours=hours_ago)
+            
+            # Fetch events
+            response = client.table('onchain-events') \
+                .select('*') \
+                .gte('created_at', start_time.isoformat()) \
+                .lte('created_at', end_time.isoformat()) \
+                .execute()
+                
+            print(f"Fetched {len(response.data)} events")
+
+            return response.data
+
+        except Exception as e:
+            print(f"Error fetching filtered events: {e}")
+            return None

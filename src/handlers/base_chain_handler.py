@@ -49,9 +49,6 @@ class BaseChainEventHandler(BaseHandler):
         if not self.tracked_markets:
             return
 
-        print("handle event", event.data.get('evm_event'))
-        print("source", event.data.get('source'))
-
         try:
             # Pass vault events
             if event.data.get('source') == "morpho_vault":
@@ -59,7 +56,6 @@ class BaseChainEventHandler(BaseHandler):
 
             # Extract and normalize market_id from the event
             raw_market_id = event.data.get('market_id')
-            print("raw_market_id", raw_market_id)
 
             if not raw_market_id:
                 return
@@ -68,7 +64,6 @@ class BaseChainEventHandler(BaseHandler):
             
             # Only process events for markets we care about
             if market_id not in self.tracked_markets:
-                print("market_id not in tracked_markets", market_id)
                 return
             
             try:

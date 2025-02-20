@@ -10,6 +10,7 @@ class EventType(Enum):
     # System
     SYSTEM_START = "system_start"
     SYSTEM_SHUTDOWN = "system_shutdown"
+    RISK_UPDATE = "risk_update"  # New event type for periodic risk updates
 
 @dataclass
 class BaseEvent:
