@@ -95,7 +95,23 @@ async def get_vault_allocations_summary() -> str:
         
     return "\n".join(response)
 
-async def get_all_market_history_summary(web3: Web3, hours_ago: int = 1) -> List[MarketSnapshot]:
+async def format_market_history(market_stats: List[MarketSnapshot]) -> str:
+    """Format market history for display"""
+    market_summaries = []
+    for market in market_stats:
+        summary = (
+            f"Market {market['id']}:\n"
+            f"Net Supply: {market['net_supply']/1e6:+,.2f} USDC "
+            f"({market['net_supply']/market['total_supply']*100:+.1f}% change)\n"
+            f"Net Borrow: {market['net_borrow']/1e6:+,.2f} USDC "
+            f"({market['net_borrow']/market['total_borrow']*100:+.1f}% change)\n"
+            f"Current APY - Supply: {market['supply_apy']:.2f}%, Borrow: {market['borrow_apy']:.2f}%"
+        )
+        market_summaries.append(summary)
+
+    return "\n".join(market_summaries)
+
+async def get_all_market_history(web3: Web3, hours_ago: int = 1) -> List[MarketSnapshot]:
     """ Get a list of market snapshots with net flows over a period of time"""
     market_reader = MarketReader(web3)
     api_client = MorphoAPIClient()

@@ -12,7 +12,6 @@ from utils.model_util import get_llm
 from utils.constants import VAULT_ADDRESS
 
 from langgraph.checkpoint.memory import MemorySaver
-memory = MemorySaver()
 
 tools = [get_reallocation_tool()]
 
@@ -22,10 +21,11 @@ executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 react_agent = create_react_agent(
     executor_llm,
     tools=tools,
-    checkpointer=memory,
-    state_modifier="""You are an DeFi lending risk manager who monitor the real time data of a morpho vault.
+    state_modifier="""
+    You are an DeFi lending risk manager who monitor the real time data of a Morpho Vault, made up of multiple markets.
 
-    You monitor all the real time data of markets, and make decisions whether there is massive risk in the vault.
+    You will be periodically given a summary of current vault and market data, and you need to figure out the best reallocation strategy. 
+    You should reply like giving an update to the board members. (not a conversation)
     
     - morpho_reallocate: Use this tool to reallocate funds.
 
