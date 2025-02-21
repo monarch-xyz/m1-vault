@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from config import Config
 from langchain_core.messages import HumanMessage, SystemMessage
+from utils.supabase import SupabaseClient
 
 from langgraph.prebuilt import create_react_agent
 from .model_util import get_llm
@@ -13,7 +14,6 @@ from utils.logger import logger
 llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 
 prompt = """You are a DeFi expert in lending protocols.
-You are given a prompt and a list of data.
 Your job is to reason about the prompt and the data, and provide a detailed analysis.
 
 For example: 
@@ -60,5 +60,14 @@ async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
         "thought": reasoning,
         "type": "reasoning"
     })
+
+    print("Thinking......")
+
+    await SupabaseClient.store_memories({
+        "type": "think",
+        "text": reasoning
+    })
+
+    print("Done thinking......")
 
     return reasoning

@@ -6,10 +6,11 @@ from pydantic import BaseModel
 from config import Config
 from utils import get_reallocation_tool
 import json
-from utils.market import fetch_all_morpho_markets, fetch_vault_market_status, VAULT_ADDRESS
+from utils.market_tools import fetch_vault_market_status
 from utils.memory import add_long_term_memory, get_long_term_memory
 from utils.reasoning import market_analysis
 from utils.model_util import get_llm
+from utils.constants import VAULT_ADDRESS
 
 from langgraph.checkpoint.memory import MemorySaver
 memory = MemorySaver()
@@ -18,7 +19,6 @@ tools = [
     # Disable temporary reallocation tool
     get_reallocation_tool(),
     fetch_vault_market_status,
-    fetch_all_morpho_markets,
     add_long_term_memory,
     get_long_term_memory,
     market_analysis
@@ -38,7 +38,6 @@ react_agent = create_react_agent(
     Once you receive the command, use coinbase CDP toolkit to execute on-chain transactions.
     You have access to the following tools:
     
-    - fetch_all_morpho_markets
     - fetch_vault_market_status
     - morpho_reallocate
     - market_analysis: Use this tool to have deep and thorough reasoning about market, vaults, or others, make sure to provide data you gather from other tools

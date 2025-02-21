@@ -14,6 +14,9 @@ from web3 import Web3
 from config import Config
 from decimal import Decimal
 from eth_abi import encode
+from utils.constants import VAULT_ADDRESS
+from utils.market_api import MorphoAPIClient
+import asyncio
 
 MORPHO_VAULT_ABI_PATH = Path(__file__).parent.parent / "abi" / "morpho-vault.json"
 with open(MORPHO_VAULT_ABI_PATH) as f:
@@ -82,10 +85,27 @@ to_markets: [
         collateral_token: 0x5555...
         oracle: 0x663B...
         irm: 0x4641...
-        lltv: 850000000000000000
+        lltv: 860000000000000000
     }
 ]
 to_market_assets: [150000000, 150000000]
+```
+"""
+
+REALLOCATE_PROMPT_2 = """
+This tool reallocate assets to a given allocation.
+
+Example: 
+We want to move 100 USDC from market A to market B and market C, making the final allocation 200 USDC in market A, 150 USDC in market B, and 150 USDC in market C.
+
+Parameters:
+```
+market_ids: [
+    "a4e2843486610e6851f4e0a8fcdee819958598c71c7e99b0315904ccf162ddc3", ("market_a")
+    "8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda", ("market_b")
+    "13c42741a359ac4a8aa8287d2be109dcf28344484f91185f9a79bd5a805a55ae", ("market_c")
+]
+new_allocations: [200000000, 150000000, 150000000]
 ```
 """
 
@@ -104,6 +124,11 @@ class MorphoReallocateInput(BaseModel):
     from_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to retain in each market (in the same order as from_markets) e.g. [200210000] for 200.21 USDC")
     to_markets: list[MarketParams] = Field(..., description="The markets to move assets to")
     to_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as to_markets) e.g. [150000000, 150250000] for 150 USDC, 150.25 USDC")
+
+class MorphoReallocateInput2(BaseModel):
+    """Input schema for Morpho Vault reallocate action."""
+    market_ids: list[str] = Field(..., description="The IDs of the markets to reallocate assets from")
+    new_allocations: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as market_ids) e.g. [200000000, 150000000, 150000000] for 200 USDC, 150 USDC, 150 USDC")
 
 class MorphoSharesInput(BaseModel):
     """Input schema for Morpho Vault shares action."""
@@ -147,12 +172,9 @@ def reallocate(
                 'assets': 2**256 - 1 if to_market == to_markets[-1] else to_assets
             })
 
-        print("allocations", allocations)
 
         # Encode reallocation call
         calldata = encode_reallocation(allocations)
-
-        print("calldata", calldata.hex())
         
         # Send via multicall
         invocation = wallet.invoke_contract(
@@ -165,7 +187,71 @@ def reallocate(
         return f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash} and transaction link: {invocation.transaction_link}"
     except Exception as e:
         print("Error during reallocation", e)
-        return "Error during reallocation. Don't retry"
+        # try return e.message
+        if hasattr(e, 'message'):
+            return e.message
+        else:
+            return str(e)
+
+def sync_wrapper(async_func):
+    def wrapper(*args, **kwargs):
+        return asyncio.run(async_func(*args, **kwargs))
+    return wrapper
+
+async def _get_market_params(market_ids: list[str]):
+    """Async function to get market parameters."""
+    return await MorphoAPIClient.get_market_params(market_ids)
+
+get_market_params_sync = sync_wrapper(_get_market_params)
+
+def reallocate_simple(
+    wallet: Wallet,
+    market_ids: list[str],
+    new_allocations: list[str],
+) -> str:
+    """Reallocate assets across different markets."""
+    try:
+        # Format allocations
+        allocations = []
+
+        print("REALLOCATE FUNCTION TRIGGERED ------")
+        
+        # Use the sync wrapper to get market params
+        market_params = get_market_params_sync(market_ids)
+        print(market_params)
+        
+        for market_param, new_allocation in zip(market_params, new_allocations):
+            allocations.append({
+                'marketParams': {
+                    'loanToken': market_param.loan_token,
+                    'collateralToken': market_param.collateral_token,
+                    'oracle': market_param.oracle,
+                    'irm': market_param.irm,
+                    'lltv': market_param.lltv,
+                },
+                'assets': 2**256 - 1 if market_param == market_params[-1] else new_allocation
+            })
+        
+        # Encode reallocation call
+        calldata = encode_reallocation(allocations)
+        
+        # Send via multicall
+        invocation = wallet.invoke_contract(
+            contract_address=VAULT_ADDRESS,
+            method="multicall",
+            abi=MORPHO_VAULT_ABI,
+            args={"data": [calldata.hex()]}
+        )
+
+        print(invocation)
+        
+        return f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash} and transaction link: {invocation.transaction_link}"
+    except Exception as e:
+        print("Error during reallocation", e)
+        if hasattr(e, 'message'):
+            return e.message
+        else:
+            return str(e)
 
 SHARES_PROMPT = """
 This tool gets the number of shares owned by a user in the Morpho vault.
@@ -215,10 +301,10 @@ def get_user_shares(
 def get_reallocation_tool():
     reallocate_tool = CdpTool(
         name="morpho_reallocate",
-        description=REALLOCATE_PROMPT,
+        description=REALLOCATE_PROMPT_2,
         cdp_agentkit_wrapper=cdp_wrapper,
-        args_schema=MorphoReallocateInput,
-        func=reallocate,
+        args_schema=MorphoReallocateInput2,
+        func=reallocate_simple,
     )
 
     return reallocate_tool

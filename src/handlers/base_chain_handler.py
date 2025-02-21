@@ -1,7 +1,7 @@
 from .base_handler import BaseHandler
 from models.events import EventType
 from utils.logger import LogService, LogCategory
-from utils.market import get_vault_allocations, MarketInfo
+from utils.market import MarketInfo, get_vault_markets
 from utils.supabase import SupabaseClient
 import asyncio
 from typing import Dict
@@ -26,7 +26,7 @@ class BaseChainEventHandler(BaseHandler):
     async def _init_tracked_markets(self):
         """Initialize the list of markets we want to track"""
         try:
-            market_infos = await get_vault_allocations()
+            market_infos = await get_vault_markets()
             # Store markets with normalized IDs
             self.tracked_markets = {
                 self._normalize_market_id(m.market_id): m 

@@ -6,7 +6,8 @@ from pydantic import BaseModel
 from config import Config
 from utils import get_user_shares_tool
 import json
-from utils.market import fetch_all_morpho_markets, fetch_vault_market_status, VAULT_ADDRESS
+from utils.market_tools import fetch_all_morpho_markets, fetch_vault_market_status
+from utils.constants import VAULT_ADDRESS
 from utils.memory import add_long_term_memory, get_long_term_memory
 from utils.model_util import get_llm
 from utils.reasoning import market_analysis
