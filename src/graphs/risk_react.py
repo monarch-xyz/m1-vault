@@ -13,7 +13,8 @@ from utils.constants import VAULT_ADDRESS
 
 from langgraph.checkpoint.memory import MemorySaver
 
-tools = [get_reallocation_tool()]
+tools = []
+# tools = [get_reallocation_tool()]
 
 executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 
@@ -27,8 +28,6 @@ react_agent = create_react_agent(
     You will be periodically given a summary of current vault and market data, and you need to figure out the best reallocation strategy. 
     You should reply like giving an update to the board members. (not a conversation)
     
-    - morpho_reallocate: Use this tool to reallocate funds.
-
     """.format(VAULT_ADDRESS),
 )
 
