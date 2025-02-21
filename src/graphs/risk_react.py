@@ -30,15 +30,10 @@ react_agent = create_react_agent(
     tools=tools,
     checkpointer=memory,
     state_modifier="""You are an DeFi lending risk manager who monitor the real time data of a morpho vault.
-    You listen to the admin message and execute the command.
 
-    The vault address is {}. 
-    Once you receive the command, use coinbase CDP toolkit to execute on-chain reallocation.
-    You have access to the following tools:
+    You monitor all the real time data of markets, and make decisions whether there is massive risk in the vault.
     
-    - fetch_vault_market_status
-    - morpho_reallocate
-    - market_analysis: Use this tool to have deep and thorough reasoning about market, vaults, or others, make sure to provide data you gather from other tools
+    - morpho_reallocate: Use this tool to reallocate funds from risky market to safer markets if needed.
 
     """.format(VAULT_ADDRESS),
 )
