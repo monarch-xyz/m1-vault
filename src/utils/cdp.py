@@ -52,30 +52,40 @@ def encode_reallocation(allocations):
 
 REALLOCATE_PROMPT = """
 This tool reallocates assets across different markets in the Morpho vault.
-It takes:
-- vault_address: The address of the Morpho Vault
-- from_markets: The markets to move assets from
-- from_markets_assets: The exact amount of assets with decimal to move from each market (in the same order as from_markets)
-- to_markets: The markets to move assets to
-- to_markets_assets: The exact amount of assets with decimal to move to each market (in the same order as to_markets)
 
-Example:
+Example: Reallocate 100 USDC from market A to market B and market C.
+At the beginning, market A has 300 USDC, market B has 100 USDC, and market C has 100 USDC.
+After reallocation, market A has 200 USDC, market B has 150 USDC, market C has 150 USDC.
+Parameters:
 ```
 vault_address: 0x346AAC1E83239dB6a6cb760e95E13258AD3d1A6d
-from_market:
-    loan_token: 0x1234...
-    collateral_token: 0x1234...
-    oracle: 0x1234...
-    irm: 0x1234...
-    lltv: 860000000000000000 (86%)
-from_market_assets: [100000000, 200000000] (100 USDC, 200 USDC)
-to_market:
-    loan_token: 0x1234...
-    collateral_token: 0x4444...
-    oracle: 0x1234...
-    irm: 0x1234...
-    lltv: 770000000000000000 (77%)
-to_market_assets: [100000000, 200000000] (100 USDC, 200 USDC)
+from_markets: [
+    {        
+        loan_token: 0x1234...
+        collateral_token: 0x1234...
+        oracle: 0x1234...
+        irm: 0x1234...
+        lltv: 860000000000000000
+    }
+]
+from_market_assets: [200000000]
+to_markets: [
+    {    
+        loan_token: 0x1234...
+        collateral_token: 0x4444...
+        oracle: 0x1234...
+        irm: 0x1234...
+        lltv: 770000000000000000
+    },
+    {
+        loan_token: 0x1234...
+        collateral_token: 0x5555...
+        oracle: 0x663B...
+        irm: 0x4641...
+        lltv: 850000000000000000
+    }
+]
+to_market_assets: [150000000, 150000000]
 ```
 """
 
@@ -85,15 +95,15 @@ class MarketParams(BaseModel):
     collateral_token: str = Field(..., description="Address of the collateral token")
     oracle: str = Field(..., description="Address of the oracle")
     irm: str = Field(..., description="Address of the interest rate model")
-    lltv: str = Field(..., description="Liquidation LTV (loan-to-value ratio)")
+    lltv: str = Field(..., description="Liquidation LTV (loan-to-value ratio) e.g. 770000000000000000 for 77%")
 
 class MorphoReallocateInput(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
     vault_address: str = Field(..., description="The address of the Morpho Vault")
     from_markets: list[MarketParams] = Field(..., description="The markets to move assets from")
-    from_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to move from each market")
+    from_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to retain in each market (in the same order as from_markets) e.g. [200000000] for 200 USDC")
     to_markets: list[MarketParams] = Field(..., description="The markets to move assets to")
-    to_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to move to each market")
+    to_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as to_markets) e.g. [150000000, 150000000] for 150 USDC, 150 USDC")
 
 class MorphoSharesInput(BaseModel):
     """Input schema for Morpho Vault shares action."""
