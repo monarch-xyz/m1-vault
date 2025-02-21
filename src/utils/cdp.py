@@ -101,9 +101,9 @@ class MorphoReallocateInput(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
     vault_address: str = Field(..., description="The address of the Morpho Vault")
     from_markets: list[MarketParams] = Field(..., description="The markets to move assets from")
-    from_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to retain in each market (in the same order as from_markets) e.g. [200000000] for 200 USDC")
+    from_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to retain in each market (in the same order as from_markets) e.g. [200210000] for 200.21 USDC")
     to_markets: list[MarketParams] = Field(..., description="The markets to move assets to")
-    to_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as to_markets) e.g. [150000000, 150000000] for 150 USDC, 150 USDC")
+    to_markets_assets: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as to_markets) e.g. [150000000, 150250000] for 150 USDC, 150.25 USDC")
 
 class MorphoSharesInput(BaseModel):
     """Input schema for Morpho Vault shares action."""
