@@ -13,7 +13,6 @@ from utils.logger import logger
 llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 
 prompt = """You are a DeFi expert in lending protocols.
-You are given a prompt and a list of data.
 Your job is to reason about the prompt and the data, and provide a detailed analysis.
 
 For example: 
