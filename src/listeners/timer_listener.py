@@ -38,7 +38,6 @@ class TimerListener(Listener):
                 event = BaseEvent(
                     type=EventType.RISK_UPDATE,
                     data={
-                        'timestamp': datetime.now().isoformat(),
                         'type': 'periodic_update'
                     },
                     source="timer",
