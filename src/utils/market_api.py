@@ -73,16 +73,19 @@ class MorphoAPIClient:
     async def get_market_apys(market_id: str) -> Dict:
         """Get market APYs"""
         async with aiohttp.ClientSession() as session:
+            # prefix with 0x if not already
+            if not market_id.startswith("0x"):
+                market_id = "0x" + market_id
             try:
                 async with session.post(
                     MORPHO_API_URL,
                     json={
                         "query": MARKET_APY_QUERY,
-                        "variables": {"marketId": market_id}
+                        "variables": {"uniqueKey": market_id}
                     }
                 ) as response:
                     data = await response.json()
-                    market = data["data"]["market"]
+                    market = data["data"]["markets"]["items"][0]
                     return {
                         'supply_apy': market["state"]["supplyApy"],
                         'borrow_apy': market["state"]["borrowApy"]

@@ -8,13 +8,18 @@ USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"  # USDC on Base
 
 # GraphQL Queries
 MARKET_APY_QUERY = """
-query getMarket($marketId: String!) {
-    market(id: $marketId) {
-        state {
-            supplyApy
-            borrowApy
-        }
+query getMarketAPY($uniqueKey: String!) {
+  markets(where:  {
+     uniqueKey_in: [$uniqueKey]
+  }) {
+    items {
+      state {
+        supplyApy
+        borrowApy
+        
+      }
     }
+  }
 }
 """
 
