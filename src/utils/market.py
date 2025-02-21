@@ -5,6 +5,9 @@ import aiohttp
 import logging
 from enum import Enum
 from dataclasses import dataclass
+from web3 import Web3
+import json
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +79,11 @@ GET_VAULT = """
 
 MORPHO_API_URL = "https://blue-api.morpho.org/graphql"
 USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"  # USDC on Base
+
+# Load ABI
+MORPHO_ABI = json.loads(
+    (Path(__file__).parent.parent / "abi" / "morpho-blue.json").read_text()
+)
 
 class Asset(BaseModel):
     """Asset information"""
@@ -359,4 +367,36 @@ async def get_vault_allocations() -> List[MarketInfo]:
         except Exception as e:
             logger.error(f"Error fetching vault allocations: {str(e)}")
             raise
+
+class MarketReader:
+    def __init__(self, web3: Web3):
+        self.web3 = web3
+        self.morpho = self.web3.eth.contract(
+            address=Web3.to_checksum_address("0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb"),
+            abi=MORPHO_ABI
+        )
+    
+    async def get_market_data(self, market_id: str) -> dict:
+        """Get market data from MorphoBlue contract"""
+        try:
+            # Convert market_id to proper format if needed
+            if not market_id.startswith('0x'):
+                market_id = f"0x{market_id}"
+            
+            # Call market() function
+            market = self.morpho.functions.market(market_id).call()
+            
+            # Calculate liquidity
+            supply_assets = int(market[0])  # totalSupplyAssets
+            borrow_assets = int(market[2])  # totalBorrowAssets
+            liquidity = supply_assets - borrow_assets
+            
+            return {
+                'supply_assets': supply_assets,
+                'borrow_assets': borrow_assets,
+                'liquidity': liquidity
+            }
+        except Exception as e:
+            print(f"Error reading market data: {e}")
+            return None
 

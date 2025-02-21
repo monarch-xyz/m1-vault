@@ -1,6 +1,7 @@
 import os
 from supabase import create_client, Client
 from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 class SupabaseClient:
     _instance: Optional[Client] = None
@@ -55,4 +56,41 @@ class SupabaseClient:
             return result
         except Exception as e:
             print(f"Error storing memories: {e}")
+            raise
+
+    @classmethod
+    async def get_filtered_market_events(cls, hours_ago: int = 1):
+        """Get filtered events from the last N hours"""
+        try:
+            client = cls.get_client()
+            
+            # Calculate time range with explicit timezone format
+            end_time = datetime.now(timezone.utc)
+            start_time = end_time - timedelta(hours=hours_ago)
+            
+            # Format timestamps to match exactly how they're stored
+            start_str = start_time.strftime('%Y-%m-%dT%H:%M:%S.%f+00:00')
+            end_str = end_time.strftime('%Y-%m-%dT%H:%M:%S.%f+00:00')
+            
+            response = client.table('onchain-events') \
+                .select('*') \
+                .gte('created_at', start_str) \
+                .lte('created_at', end_str) \
+                .execute()
+            
+            return response.data
+
+        except Exception as e:
+            print(f"Error fetching filtered events: {str(e)}")
+            return None
+
+    @classmethod
+    async def store_market_snapshot(cls, data: dict):
+        """Store market snapshot in the market-snapshots table"""
+        try:
+            client = cls.get_client()
+            result = client.table('market-snapshots').insert(data).execute()
+            return result
+        except Exception as e:
+            print(f"Error storing market snapshot: {e}")
             raise

@@ -3,7 +3,8 @@ import os
 from core.agent import Agent
 from listeners.telegram_listener import TelegramListener
 from listeners.onchain_listener import OnChainListener
-from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler
+from listeners.timer_listener import TimerListener
+from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler, PeriodicRiskHandler
 from utils.logger import logger, start_log_server
 from utils.supabase import SupabaseClient
 from aiohttp import web
@@ -56,13 +57,15 @@ async def main():
     # Initialize components with logging
     listeners = [
         TelegramListener(agent.event_bus, logger),
-        OnChainListener(agent.event_bus, logger)
+        OnChainListener(agent.event_bus, logger),
+        TimerListener(agent.event_bus, logger)
     ]
     
     handlers = [
         AdminMessageHandler(agent, logger),
         UserMessageHandler(agent, logger),
-        BaseChainEventHandler(agent, logger)
+        BaseChainEventHandler(agent, logger),
+        PeriodicRiskHandler(agent, logger)
     ]
 
     try:
