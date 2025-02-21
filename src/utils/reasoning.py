@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from config import Config
 from langchain_core.messages import HumanMessage, SystemMessage
+from utils.supabase import SupabaseClient
 
 from langgraph.prebuilt import create_react_agent
 from .model_util import get_llm
