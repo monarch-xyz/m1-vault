@@ -11,7 +11,7 @@ class TimerListener(Listener):
         self.is_running = False
         self.tasks = []
         self.intervals = {
-            'RISK_UPDATE': 600  # seconds
+            'RISK_UPDATE': 3600  # seconds
         }
 
     async def start(self):

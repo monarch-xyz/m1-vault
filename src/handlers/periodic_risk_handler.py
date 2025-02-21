@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 from handlers.base_handler import BaseHandler
 from models.events import EventType
-from utils.market import get_all_market_history_summary
+from utils.market import get_all_market_history_summary, get_vault_allocations_summary
 from utils.supabase import SupabaseClient
+from langchain_core.messages import HumanMessage
 from web3 import Web3
 import os
+from graphs.risk_react import react_agent
 
 class PeriodicRiskHandler(BaseHandler):
     """Handler for periodic risk analysis"""
@@ -15,7 +17,8 @@ class PeriodicRiskHandler(BaseHandler):
         # Initialize Web3
         self.web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
         self.hours_ago = 1
-
+        self.llm = react_agent
+    
     @property
     def subscribes_to(self):
         return [EventType.RISK_UPDATE]
@@ -24,10 +27,10 @@ class PeriodicRiskHandler(BaseHandler):
         """Handle periodic risk update events"""
         try:
             # Get consolidated market data
-            market_data = await get_all_market_history_summary(self.web3, self.hours_ago)
+            market_stats_last_hour = await get_all_market_history_summary(self.web3, self.hours_ago)
             
             # Store snapshots
-            for market in market_data:
+            for market in market_stats_last_hour:
                 snapshot = {
                     'market': market['id'],
                     'interval': self.hours_ago * 3600,
@@ -41,7 +44,7 @@ class PeriodicRiskHandler(BaseHandler):
                 await SupabaseClient.store_market_snapshot(snapshot)
             
             # Pass data to risk analysis
-            await self.analyze_risk(market_data)
+            await self.analyze_risk(market_stats_last_hour)
             
         except Exception as e:
             await self.logger.error("PeriodicRiskHandler", f"Error in risk update: {str(e)}")
@@ -61,4 +64,19 @@ class PeriodicRiskHandler(BaseHandler):
             )
             market_summaries.append(summary)
         
-        # TODO: Pass to risk_react.py for LLM analysis 
+        vault_allocation_summary = await get_vault_allocations_summary()
+
+        prompt = f"""
+        Here is the market activity in the last {self.hours_ago} hours:
+        {market_summaries}
+
+        Current Vault allocation
+        {vault_allocation_summary}
+        """
+        
+        state = await self.llm.ainvoke({
+            "messages": [HumanMessage(content=prompt)]
+        }, config={"configurable": {"thread_id": "risk_analysis"}})
+
+        # for all messages in state[messages], find things we want to print
+        return state['messages'][-1].content

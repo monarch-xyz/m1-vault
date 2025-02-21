@@ -42,7 +42,7 @@ async def get_morpho_markets() -> List[Market]:
     """Get all Morpho markets"""
     return await MorphoAPIClient.get_all_markets()
 
-async def get_vault_allocations() -> List[MarketInfo]:
+async def get_vault_markets() -> List[MarketInfo]:
     """Get formatted vault allocation info"""
     try:
         vault = await MorphoAPIClient.get_vault_data(VAULT_ADDRESS)
@@ -65,6 +65,35 @@ async def get_vault_allocations() -> List[MarketInfo]:
         print(f"Error getting vault allocations: {e}")
         return []
 
+
+async def get_vault_allocations_summary() -> str:
+    vault = await MorphoAPIClient.get_vault_data(VAULT_ADDRESS)
+    markets = await get_morpho_markets()
+    
+    # Process data
+    approved_market_ids = {alloc.market["id"] for alloc in vault.state.allocation}
+    approved_markets = [m for m in markets if m.id in approved_market_ids]
+    other_markets = [m for m in markets if m.id not in approved_market_ids]
+    
+    # Format response
+    response = [
+        f"Vault Analysis (${vault.state.totalAssetsUsd:,.2f} TVL)",
+        f"Current APY: {vault.state.apy * 100:.2f}%",
+        f"All-time APY: {vault.state.allTimeApy * 100:.2f}%\n"
+    ]
+    
+    # Format approved markets
+    response.append("\n🟢 Approved Markets (Can reallocate):")
+    for market in approved_markets:
+        allocation = next(a for a in vault.state.allocation if a.market["id"] == market.id)
+        response.extend([
+            f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol} ({market.uniqueKey})",
+            f"  Current Supply: {allocation.supplyAssets/1e6:,.2f} USDC",
+            f"  Supply Cap: {allocation.supplyCap/1e6:,.2f} USDC",
+            f"  APY: {market.state.supplyApy * 100:.2f}%"
+        ])
+        
+    return "\n".join(response)
 
 async def get_all_market_history_summary(web3: Web3, hours_ago: int = 1) -> List[MarketSnapshot]:
     """ Get a list of market snapshots with net flows over a period of time"""

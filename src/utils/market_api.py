@@ -87,8 +87,8 @@ class MorphoAPIClient:
                     data = await response.json()
                     market = data["data"]["markets"]["items"][0]
                     return {
-                        'supply_apy': market["state"]["supplyApy"],
-                        'borrow_apy': market["state"]["borrowApy"]
+                        'supply_apy': float(market["state"]["supplyApy"]) * 100,
+                        'borrow_apy': float(market["state"]["borrowApy"]) * 100
                     }
             except Exception as e:
                 print(f"Error fetching market APYs: {e}")
