@@ -1,7 +1,7 @@
 # For Morpho API interactions
 import aiohttp
 from typing import Dict, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from .constants import (
     MORPHO_API_URL, 
     USDC_ADDRESS,
@@ -9,6 +9,14 @@ from .constants import (
     GET_MARKETS_QUERY,
     GET_VAULT_QUERY
 )
+
+class MarketParams(BaseModel):
+    """Market parameters for Morpho markets."""
+    loan_token: str = Field(..., description="Address of the loan token")
+    collateral_token: str = Field(..., description="Address of the collateral token")
+    oracle: str = Field(..., description="Address of the oracle")
+    irm: str = Field(..., description="Address of the interest rate model")
+    lltv: int = Field(..., description="Liquidation LTV (loan-to-value ratio) e.g. 770000000000000000 for 77%")
 
 # API Response Types
 class Asset(BaseModel):
@@ -146,3 +154,25 @@ class MorphoAPIClient:
             except Exception as e:
                 print(f"Error fetching vault data: {e}")
                 return None 
+
+
+    @staticmethod
+    async def get_market_params(market_ids: list[str]) -> list[MarketParams]:
+        markets = await MorphoAPIClient.get_all_markets()
+        
+        market_params = []
+
+        # for each market_id, find the market in the list of markets
+        for market_id in market_ids:
+            if not market_id.startswith("0x"):
+                market_id = "0x" + market_id
+            for market in markets:
+                if market.uniqueKey == market_id:
+                    market_params.append(MarketParams(
+                        loan_token=market.loanAsset.address,
+                        collateral_token=market.collateralAsset.address,
+                        oracle=market.oracleAddress,
+                        irm=market.irmAddress,
+                        lltv=market.lltv
+                    ))
+        return market_params
