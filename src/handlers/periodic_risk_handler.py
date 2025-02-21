@@ -31,12 +31,12 @@ class PeriodicRiskHandler(BaseHandler):
                 snapshot = {
                     'market': market['id'],
                     'interval': self.hours_ago * 3600,
-                    'total_supply': market['total_supply'],
-                    'total_borrow': market['total_borrow'],
-                    'supply': market['supply'],
-                    'borrow': market['borrow'],
-                    'withdraw': market['withdraw'],
-                    'repay': market['repay']
+                    'total_supply': int(market['total_supply']),
+                    'total_borrow': int(market['total_borrow']),
+                    'supply': int(market['supply']),
+                    'borrow': int(market['borrow']),
+                    'withdraw': int(market['withdraw']),
+                    'repay': int(market['repay'])
                 }
                 await SupabaseClient.store_market_snapshot(snapshot)
             

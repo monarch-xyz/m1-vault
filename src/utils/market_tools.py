@@ -52,18 +52,9 @@ async def fetch_vault_market_status() -> str:
         for market in approved_markets:
             allocation = next(a for a in vault.state.allocation if a.market["id"] == market.id)
             response.extend([
-                f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol}",
+                f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol} ({market.id})",
                 f"  Current Supply: {allocation.supplyAssets/1e6:,.2f} USDC",
                 f"  Supply Cap: {allocation.supplyCap/1e6:,.2f} USDC",
-                f"  APY: {market.state.supplyApy * 100:.2f}%"
-            ])
-            
-        # Format other markets
-        response.append("\n\n🔵 Other Available Markets:")
-        for market in other_markets:
-            response.extend([
-                f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol}",
-                f"  TVL: ${market.state.supplyAssetsUsd:,.2f}",
                 f"  APY: {market.state.supplyApy * 100:.2f}%"
             ])
             

@@ -82,7 +82,7 @@ to_markets: [
         collateral_token: 0x5555...
         oracle: 0x663B...
         irm: 0x4641...
-        lltv: 850000000000000000
+        lltv: 860000000000000000
     }
 ]
 to_market_assets: [150000000, 150000000]
@@ -147,12 +147,9 @@ def reallocate(
                 'assets': 2**256 - 1 if to_market == to_markets[-1] else to_assets
             })
 
-        print("allocations", allocations)
 
         # Encode reallocation call
         calldata = encode_reallocation(allocations)
-
-        print("calldata", calldata.hex())
         
         # Send via multicall
         invocation = wallet.invoke_contract(
@@ -165,7 +162,11 @@ def reallocate(
         return f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash} and transaction link: {invocation.transaction_link}"
     except Exception as e:
         print("Error during reallocation", e)
-        return "Error during reallocation. Don't retry"
+        # try return e.message
+        if hasattr(e, 'message'):
+            return e.message
+        else:
+            return str(e)
 
 SHARES_PROMPT = """
 This tool gets the number of shares owned by a user in the Morpho vault.
