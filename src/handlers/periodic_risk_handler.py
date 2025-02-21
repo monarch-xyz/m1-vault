@@ -75,4 +75,10 @@ class PeriodicRiskHandler(BaseHandler):
             "from": "agent",
             "text": content
         })
+
+        await SupabaseClient.store_memories({
+            "type": "risk_analysis",
+            "text": content
+        })
+
         return content

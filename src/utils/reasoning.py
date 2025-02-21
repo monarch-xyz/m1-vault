@@ -60,9 +60,13 @@ async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
         "type": "reasoning"
     })
 
+    print("Thinking......")
+
     await SupabaseClient.store_memories({
         "type": "think",
         "text": reasoning
     })
+
+    print("Done thinking......")
 
     return reasoning
