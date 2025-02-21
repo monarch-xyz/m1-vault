@@ -31,7 +31,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details
 pip install -r requirements.txt
 ```
 
-### 2. run a local docker container of vector store (chroma)
+### 2. Run a local docker container of vector store (chroma)
 
 if you don't have the image, pull it once
 ```
@@ -49,9 +49,21 @@ docker run -p 8001:8000 chromadb/chroma
 python scripts/init_morpho_knowledge.py
 ```
 
-### 4. Run the Agent
+### 4. Run a local supabase db
+
+```
+supabase start
+```
+
+### 5. Run the Agent
+
+For development,
+```
+ENV=develop python src/main.py
+```
+
+For production,
 
 ```
 python src/main.py
 ```
-
