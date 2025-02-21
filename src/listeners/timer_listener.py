@@ -44,7 +44,7 @@ class TimerListener(Listener):
                     timestamp=datetime.now().timestamp()
                 )
                 
-                # await self.event_bus.publish(EventType.RISK_UPDATE, event)
+                await self.event_bus.publish(EventType.RISK_UPDATE, event)
                 
             except Exception as e:
                 await self.logger.error("TimerListener", f"Error emitting risk event: {str(e)}")

@@ -6,15 +6,16 @@ from pydantic import BaseModel
 from config import Config
 from utils import get_reallocation_tool
 import json
-from utils.memory import add_long_term_memory, get_long_term_memory
 from utils.reasoning import market_analysis
 from utils.model_util import get_llm
 from utils.constants import VAULT_ADDRESS
 
 from langgraph.checkpoint.memory import MemorySaver
 
-tools = []
-# tools = [get_reallocation_tool()]
+tools = [
+    get_reallocation_tool(),
+    market_analysis
+]
 
 executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 
