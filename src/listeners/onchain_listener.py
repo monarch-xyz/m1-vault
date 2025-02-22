@@ -9,14 +9,17 @@ from web3.contract import Contract
 import json
 import os
 from models.messages import ChainMessage
-    
+from utils.broadcaster import ws_client
+import logging
+
+# Get the standard Python logger
+logger = logging.getLogger(__name__)
 
 class BaseEventProcessor:
     """Base class for contract-specific event processors"""
-    def __init__(self, contract: Contract, event_bus, logger, web3):
+    def __init__(self, contract: Contract, event_bus, web3):
         self.contract = contract
         self.event_bus = event_bus
-        self.logger = logger
         self.web3 = web3
         self.event_types = []
 
@@ -33,9 +36,8 @@ def load_abi(filename: str) -> dict:
 class OnChainListener(Listener):
     """Shared block polling with multiple contract processors"""
     
-    def __init__(self, event_bus, logger):
+    def __init__(self, event_bus):
         self.event_bus = event_bus
-        self.logger = logger
         
         # Initialize Web3
         self.web3 = Web3(Web3.HTTPProvider(Config.CHAIN_RPC_URL))
@@ -59,11 +61,11 @@ class OnChainListener(Listener):
         # Initialize processors
         self.add_processor(
             "morpho_blue",
-            MorphoBlueProcessor(morpho_blue_contract, event_bus, logger, self.web3)
+            MorphoBlueProcessor(morpho_blue_contract, event_bus, self.web3)
         )
         self.add_processor(
             "morpho_vault",
-            MorphoVaultProcessor(vault_contract, event_bus, logger, self.web3)
+            MorphoVaultProcessor(vault_contract, event_bus, self.web3)
         )
     
     def add_processor(self, name: str, processor: BaseEventProcessor):
@@ -93,7 +95,7 @@ class OnChainListener(Listener):
                 await asyncio.sleep(10)
                 
             except Exception as e:
-                await self.logger.error("BlockPolling Error", str(e))
+                logger.error("BlockPolling Error", str(e))
                 await asyncio.sleep(60)
 
     async def _process_new_blocks(self, from_block: int, to_block: int):
@@ -102,10 +104,10 @@ class OnChainListener(Listener):
             try:
                 await processor.process_blocks(from_block, to_block)
             except Exception as e:
-                await self.logger.error(f"Processor_{name} Error", str(e))
+                logger.error(f"Processor_{name} Error", str(e))
 
     async def stop(self):
-        await self.logger.event("OnChainListener", "Stopping block polling...")
+        print("Stopping onchain listener...")
 
 
 # Example processor implementations
@@ -134,7 +136,7 @@ class MorphoBlueProcessor(BaseEventProcessor):
 
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
-                await self.logger.error("MorphoBlue", str(e))
+                logger.error("MorphoBlue", str(e))
 
     def _parse_event(self, log):
         evm_event_type = log.event.lower()  # supply, withdraw, repay, borrow
@@ -214,7 +216,7 @@ class MorphoVaultProcessor(BaseEventProcessor):
                     message = message_bytes.decode('utf-8').strip()
                     
                     if message:  # Only process non-empty messages
-                        print(f"[MorphoVault] Decoded message: {message}")
+                        logger.info(f"[MorphoVault] Decoded message: {message}")
                         
                         data = ChainMessage(
                             text=message,
@@ -233,10 +235,10 @@ class MorphoVaultProcessor(BaseEventProcessor):
                         await self.event_bus.publish(EventType.USER_MESSAGE, event)
 
                 except (UnicodeDecodeError, ValueError) as e:
-                    print(f"[MorphoVault] Message decode error: {str(e)}")
+                    logger.error(f"[MorphoVault] Message decode error: {str(e)}")
 
             except Exception as e:
-                print(f"[MorphoVault] Error: {str(e)}")
+                logger.error(f"[MorphoVault] Error: {str(e)}")
 
     def _parse_event(self, log):
         parsed = dict(log.args)

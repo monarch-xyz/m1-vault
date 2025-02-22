@@ -2,12 +2,12 @@ from core.agent import Listener
 from models.events import EventType, BaseEvent
 import asyncio
 from datetime import datetime
-
+from utils.broadcaster import ws_client
 class TimerListener(Listener):
     """Emits periodic events for scheduled tasks"""
     
-    def __init__(self, event_bus, logger):
-        super().__init__(event_bus, logger)
+    def __init__(self, event_bus):
+        super().__init__(event_bus)
         self.is_running = False
         self.tasks = []
         self.intervals = {
@@ -20,7 +20,7 @@ class TimerListener(Listener):
         self.tasks.append(
             asyncio.create_task(self._emit_risk_events())
         )
-        await self.logger.action("TimerListener", "Timer-based event emission started")
+        print("TimerListener", "Timer-based event emission started")
 
     async def stop(self):
         """Stop all timers"""
@@ -28,7 +28,7 @@ class TimerListener(Listener):
         for task in self.tasks:
             task.cancel()
         self.tasks = []
-        await self.logger.action("TimerListener", "Timer-based event emission stopped")
+        print("TimerListener", "Timer-based event emission stopped")
 
     async def _emit_risk_events(self):
         """Emit periodic risk update events"""
@@ -47,7 +47,7 @@ class TimerListener(Listener):
                 await self.event_bus.publish(EventType.RISK_UPDATE, event)
                 
             except Exception as e:
-                await self.logger.error("TimerListener", f"Error emitting risk event: {str(e)}")
+                print("TimerListener", f"Error emitting risk event: {str(e)}")
             
             # Wait for next interval
             await asyncio.sleep(self.intervals['RISK_UPDATE']) 

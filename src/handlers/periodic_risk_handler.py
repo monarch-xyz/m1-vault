@@ -7,13 +7,17 @@ from langchain_core.messages import HumanMessage
 from web3 import Web3
 import os
 from graphs.risk_react import react_agent
+from utils.broadcaster import ws_client
+import logging
+
+# Get the standard Python logger
+logger = logging.getLogger(__name__)
 
 class PeriodicRiskHandler(BaseHandler):
     """Handler for periodic risk analysis"""
     
-    def __init__(self, agent, logger):
+    def __init__(self, agent):
         super().__init__(agent)
-        self.logger = logger
         # Initialize Web3
         self.web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
         self.hours_ago = 1
@@ -47,7 +51,7 @@ class PeriodicRiskHandler(BaseHandler):
             await self.analyze_risk(market_summaries)
             
         except Exception as e:
-            await self.logger.error("PeriodicRiskHandler", f"Error in risk update: {str(e)}")
+            logger.error("PeriodicRiskHandler", f"Error in risk update: {str(e)}")
 
     async def analyze_risk(self, market_data):
         """Analyze market risk using LLM"""
@@ -71,13 +75,10 @@ class PeriodicRiskHandler(BaseHandler):
 
         # for all messages in state[messages], find things we want to print
         content = state['messages'][-1].content
-        await self.logger.conversation("Risk Analysis", {
-            "from": "agent",
-            "text": content
-        })
+        await ws_client.broadcast_report("hourly", content)
 
         await SupabaseClient.store_memories({
-            "type": "risk_analysis",
+            "type": "announcement",
             "text": content
         })
 

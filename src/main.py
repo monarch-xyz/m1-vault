@@ -5,8 +5,8 @@ from listeners.telegram_listener import TelegramListener
 from listeners.onchain_listener import OnChainListener
 from listeners.timer_listener import TimerListener
 from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler, PeriodicRiskHandler
-from utils.logger import logger, start_log_server
 from utils.supabase import SupabaseClient
+from utils.broadcaster import ws_client, start_websocket_server
 from aiohttp import web
 
 async def healthcheck(request):
@@ -30,7 +30,7 @@ async def init_app():
     app.add_routes([web.get('/health', healthcheck)])
     
     # Initialize logging WebSocket
-    await start_log_server(app)
+    await start_websocket_server(app)
     
     return app
 
@@ -51,21 +51,21 @@ async def main():
     
     print(f"✅ Server running on 0.0.0.0:{port}")
     
-    # Initialize agent with logging capability
-    agent = Agent(logger=logger)
+    # Initialize agent, initiate agent.event_bus
+    agent = Agent()
     
     # Initialize components with logging
     listeners = [
-        TelegramListener(agent.event_bus, logger),
-        OnChainListener(agent.event_bus, logger),
-        TimerListener(agent.event_bus, logger)
+        TelegramListener(agent.event_bus),
+        OnChainListener(agent.event_bus),
+        TimerListener(agent.event_bus)
     ]
     
     handlers = [
-        AdminMessageHandler(agent, logger),
-        UserMessageHandler(agent, logger),
-        BaseChainEventHandler(agent, logger),
-        PeriodicRiskHandler(agent, logger)
+        AdminMessageHandler(agent),
+        UserMessageHandler(agent),
+        BaseChainEventHandler(agent),
+        PeriodicRiskHandler(agent)
     ]
 
     try:

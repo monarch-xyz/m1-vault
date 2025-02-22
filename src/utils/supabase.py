@@ -51,7 +51,6 @@ class SupabaseClient:
     async def store_memories(cls, data: dict):
         """Store memories in the memories table"""
         try:
-            print("Storing memories......")
             client = cls.get_client()
             result = client.table('memories').insert(data).execute()
             return result

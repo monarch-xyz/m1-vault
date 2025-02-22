@@ -101,9 +101,9 @@ We want to move 100 USDC from market A to market B and market C, making the fina
 Parameters:
 ```
 market_ids: [
-    "a4e2843486610e6851f4e0a8fcdee819958598c71c7e99b0315904ccf162ddc3", ("market_a")
-    "8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda", ("market_b")
-    "13c42741a359ac4a8aa8287d2be109dcf28344484f91185f9a79bd5a805a55ae", ("market_c")
+    "a4e2843486610e6851f4e0a8fcdee819958598c71c7e99b0315904ccf162ddc3", ("market_a") (from)
+    "8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda", ("market_b") (to)
+    "13c42741a359ac4a8aa8287d2be109dcf28344484f91185f9a79bd5a805a55ae", ("market_c") (to)
 ]
 new_allocations: [200000000, 150000000, 150000000]
 ```
@@ -127,7 +127,7 @@ class MorphoReallocateInput(BaseModel):
 
 class MorphoReallocateInput2(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
-    market_ids: list[str] = Field(..., description="The IDs of the markets to reallocate assets from")
+    market_ids: list[str] = Field(..., description="The IDs of the markets to reallocate assets. From market first, then to markets.")
     new_allocations: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as market_ids) e.g. [200000000, 150000000, 150000000] for 200 USDC, 150 USDC, 150 USDC")
 
 class MorphoSharesInput(BaseModel):

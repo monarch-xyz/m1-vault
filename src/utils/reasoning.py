@@ -6,8 +6,11 @@ from utils.supabase import SupabaseClient
 from langgraph.prebuilt import create_react_agent
 from .model_util import get_llm
 
-# same instance as the one in main.py
-from utils.logger import logger
+from utils.broadcaster import ws_client
+import logging
+
+# Get the standard Python logger
+logger = logging.getLogger(__name__)
 
 
 # use smarter model for reasoning
@@ -56,18 +59,11 @@ async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
 
     reasoning = response.content
 
-    await logger.think("Reasoning", {
-        "thought": reasoning,
-        "type": "reasoning"
-    })
-
-    print("Thinking......")
+    await ws_client.broadcast_thought("analysis", reasoning)
 
     await SupabaseClient.store_memories({
         "type": "think",
         "text": reasoning
     })
-
-    print("Done thinking......")
 
     return reasoning
