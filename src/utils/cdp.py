@@ -2,6 +2,7 @@
 import os
 import logging
 import json
+import logging
 from typing import Optional, Tuple, Callable
 from cdp import Wallet
 from cdp.smart_contract import SmartContract
@@ -17,7 +18,10 @@ from eth_abi import encode
 from utils.constants import VAULT_ADDRESS
 from utils.market_api import MorphoAPIClient
 import asyncio
+from utils.supabase import SupabaseClient
 
+logger = logging.getLogger(__name__)
+    
 MORPHO_VAULT_ABI_PATH = Path(__file__).parent.parent / "abi" / "morpho-vault.json"
 with open(MORPHO_VAULT_ABI_PATH) as f:
     MORPHO_VAULT_ABI = json.load(f)
@@ -218,7 +222,6 @@ def reallocate_simple(
         
         # Use the sync wrapper to get market params
         market_params = get_market_params_sync(market_ids)
-        print(market_params)
         
         for market_param, new_allocation in zip(market_params, new_allocations):
             allocations.append({
@@ -231,6 +234,8 @@ def reallocate_simple(
                 },
                 'assets': 2**256 - 1 if market_param == market_params[-1] else new_allocation
             })
+
+        logger.info(f"Allocations: {allocations}")
         
         # Encode reallocation call
         calldata = encode_reallocation(allocations)
@@ -246,7 +251,8 @@ def reallocate_simple(
         print(invocation)
         message = f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash}"
 
-        await SupabaseClient.store_action("reallocate", message)
+        # Store the action, do not await
+        # SupabaseClient.store_action("reallocate", message)
         return message
     except Exception as e:
         print("Error during reallocation", e)
@@ -296,7 +302,8 @@ def get_user_shares(
         # Format shares with proper decimals
         shares_formatted = shares / (10 ** decimals)
 
-        await SupabaseClient.store_action("get_shares", f"User {user_address} owns {shares_formatted:,.6f} vault shares")
+        # Store the action, do not await
+        # SupabaseClient.store_action("get_shares", f"User {user_address} owns {shares_formatted:,.6f} vault shares")
         
         return f"User {user_address} owns {shares_formatted:,.6f} vault shares"
     except Exception as e:
