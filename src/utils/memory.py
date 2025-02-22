@@ -1,26 +1,25 @@
-from langchain_chroma import Chroma
+from supabase.client import Client, create_client
+from langchain_community.vectorstores.supabase import SupabaseVectorStore
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.tools import tool
 from config import Config
 from langchain_core.documents import Document
 import os
-import chromadb
 
 # same instance as the one in main.py
 from utils.logger import logger
 
-# Initialize Chroma client
-chroma_client = chromadb.HttpClient(
-    host=os.getenv("VECTOR_DB_URL"),
-    port=os.getenv("VECTOR_DB_PORT")
-)
-chroma_client.get_or_create_collection("long_term_memory")
+# Initialize Supabase client
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(supabase_url, supabase_key)
 
 # Initialize vector store
-long_term_memory = Chroma(
-    client=chroma_client,
-    collection_name="long_term_memory",
-    embedding_function=OpenAIEmbeddings(openai_api_key=Config.OPENAI_API_KEY),
+long_term_memory = SupabaseVectorStore(
+    client=supabase,
+    embedding=OpenAIEmbeddings(openai_api_key=Config.OPENAI_API_KEY),
+    table_name="documents",
+    query_name="match_documents"
 )
 
 @tool
@@ -30,7 +29,6 @@ async def add_long_term_memory(summary: str, metadata: dict):
 
     Args:
         summary: The message to add to the long term memory
-
         metadata: {
           "timestamp": int,
           "user_id": str,
@@ -38,9 +36,9 @@ async def add_long_term_memory(summary: str, metadata: dict):
         }
     """
     long_term_memory.add_documents([Document(
-      page_content=summary,
-      metadata=metadata,
-      )])
+        page_content=summary,
+        metadata=metadata,
+    )])
 
     await logger.memory("Memory", {
         "summary": summary,
@@ -56,7 +54,11 @@ async def get_long_term_memory(query: str, filter: dict):
         query: The query to search the long term memory
         filter: The filter by metadata, example: {"type": "user", "timestamp": 1723081200}
     """
-    docs = long_term_memory.similarity_search(query, k=5, filter=filter)
+    docs = long_term_memory.similarity_search(
+        query,
+        k=5,
+        filter=filter
+    )
 
     formatted_memory = ""
     for doc in docs:
