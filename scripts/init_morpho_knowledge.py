@@ -1,32 +1,29 @@
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import SupabaseVectorStore
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+from supabase.client import Client, create_client
+from dotenv import load_dotenv
 import os
 import asyncio
 import sys
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-from dotenv import load_dotenv
-import chromadb
 
 load_dotenv()
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
-
-storeage_path = "data/morpho_knowledge"
-
 file_path = "scripts/morpho-docs-dump.pdf"
 
-# Initialize Chroma client
-chroma_client = chromadb.HttpClient(
-    host=os.getenv("VECTOR_DB_URL"),
-    port=os.getenv("VECTOR_DB_PORT")
-)
-chroma_client.get_or_create_collection("morpho_knowledge")
+# Initialize Supabase client
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(supabase_url, supabase_key)
 
 # Initialize vector store
-knowledge_store = Chroma(
-    client=chroma_client,
-    collection_name="morpho_knowledge",
-    embedding_function=OpenAIEmbeddings(openai_api_key=openai_api_key),
+knowledge_store = SupabaseVectorStore(
+    client=supabase,
+    embedding=OpenAIEmbeddings(openai_api_key=openai_api_key),
+    table_name="documents",
+    query_name="match_documents"
 )
 
 async def main():
@@ -36,7 +33,10 @@ async def main():
     async for page in loader.alazy_load():
         pages.append(page)
 
-    knowledge_store.add_documents(pages)
+    try:
+        knowledge_store.add_documents(pages)
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
