@@ -60,10 +60,6 @@ async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
     reasoning = response.content
 
     await ws_client.broadcast_thought("analysis", reasoning)
-
-    await SupabaseClient.store_memories({
-        "type": "think",
-        "text": reasoning
-    })
+    await SupabaseClient.store_thought("analysis", reasoning)
 
     return reasoning

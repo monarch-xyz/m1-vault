@@ -244,8 +244,10 @@ def reallocate_simple(
         )
 
         print(invocation)
-        
-        return f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash} and transaction link: {invocation.transaction_link}"
+        message = f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash}"
+
+        await SupabaseClient.store_action("reallocate", message)
+        return message
     except Exception as e:
         print("Error during reallocation", e)
         if hasattr(e, 'message'):
@@ -293,6 +295,8 @@ def get_user_shares(
         
         # Format shares with proper decimals
         shares_formatted = shares / (10 ** decimals)
+
+        await SupabaseClient.store_action("get_shares", f"User {user_address} owns {shares_formatted:,.6f} vault shares")
         
         return f"User {user_address} owns {shares_formatted:,.6f} vault shares"
     except Exception as e:

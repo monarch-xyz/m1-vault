@@ -77,9 +77,6 @@ class PeriodicRiskHandler(BaseHandler):
         content = state['messages'][-1].content
         await ws_client.broadcast_report("hourly", content)
 
-        await SupabaseClient.store_memories({
-            "type": "announcement",
-            "text": content
-        })
+        await SupabaseClient.store_report(content)
 
         return content

@@ -48,14 +48,50 @@ class SupabaseClient:
             raise
 
     @classmethod
-    async def store_memories(cls, data: dict):
-        """Store memories in the memories table"""
+    async def store_thought(cls, sub_type, text):
+        """Store thought in the thoughts table"""
         try:
             client = cls.get_client()
+            data = {
+                "type": "think" ,
+                "text": text,
+                "sub_type": sub_type
+            }
+            result = client.table('memories').insert(data).execute()
+            return result
+        except Exception as e:
+            print(f"Error storing thought: {e}")
+            raise
+
+    @classmethod
+    async def store_report(cls, text: str):
+        """Store announcement in the announcements table"""
+        try:
+            client = cls.get_client()
+            data = {
+                "type": "report",
+                "text": text
+            }
             result = client.table('memories').insert(data).execute()
             return result
         except Exception as e:
             print(f"Error storing memories: {e}")
+            raise
+
+    @classmethod
+    async def store_action(cls, sub_type, text: str):
+        """Store action in the actions table"""
+        try:
+            client = cls.get_client()
+            data = {
+                "type": "action",
+                "sub_type": sub_type,
+                "text": text
+            }
+            result = client.table('memories').insert(data).execute()
+            return result
+        except Exception as e:
+            print(f"Error storing action: {e}")
             raise
 
     @classmethod
