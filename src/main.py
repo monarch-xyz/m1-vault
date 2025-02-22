@@ -6,21 +6,10 @@ from listeners.onchain_listener import OnChainListener
 from listeners.timer_listener import TimerListener
 from handlers import AdminMessageHandler, UserMessageHandler, BaseChainEventHandler, PeriodicRiskHandler
 from utils.supabase import SupabaseClient
-from utils.broadcaster import ws_client, start_websocket_server
 from aiohttp import web
 
 async def healthcheck(request):
     return web.Response(text="OK")
-
-async def websocket_handler(request):
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
-    
-    async for msg in ws:
-        # Handle WebSocket messages here
-        await ws.send_str(f"Received: {msg.data}")
-    
-    return ws
 
 async def init_app():
     app = web.Application()

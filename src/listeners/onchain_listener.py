@@ -9,7 +9,6 @@ from web3.contract import Contract
 import json
 import os
 from models.messages import ChainMessage
-from utils.broadcaster import ws_client
 import logging
 
 # Get the standard Python logger

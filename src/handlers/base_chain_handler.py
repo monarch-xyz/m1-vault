@@ -4,7 +4,6 @@ from utils.market import MarketInfo, get_vault_markets
 from utils.supabase import SupabaseClient
 import asyncio
 from typing import Dict
-from utils.broadcaster import ws_client
 import logging
 
 # Get the standard Python logger

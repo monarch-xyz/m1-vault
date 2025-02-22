@@ -6,7 +6,6 @@ from utils.supabase import SupabaseClient
 from langgraph.prebuilt import create_react_agent
 from .model_util import get_llm
 
-from utils.broadcaster import ws_client
 import logging
 
 # Get the standard Python logger
@@ -59,7 +58,6 @@ async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
 
     reasoning = response.content
 
-    await ws_client.broadcast_thought("analysis", reasoning)
     await SupabaseClient.store_thought("analysis", reasoning)
 
     return reasoning

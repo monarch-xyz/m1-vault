@@ -6,7 +6,6 @@ from config import Config
 from langchain_core.documents import Document
 import os
 import chromadb
-from utils.broadcaster import ws_client 
 import logging
 
 # Get the standard Python logger
@@ -43,7 +42,6 @@ async def add_long_term_memory(summary: str, metadata: dict):
         metadata=metadata,
     )])
 
-    await ws_client.broadcast_memory(metadata["type"], summary)
     logger.info(f"Added {metadata['type']} to long term memory: {summary}")
 
 @tool

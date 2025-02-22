@@ -2,7 +2,6 @@ from core.agent import Listener
 from models.events import EventType, BaseEvent
 import asyncio
 from datetime import datetime
-from utils.broadcaster import ws_client
 class TimerListener(Listener):
     """Emits periodic events for scheduled tasks"""
     

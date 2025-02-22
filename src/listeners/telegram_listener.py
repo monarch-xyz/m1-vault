@@ -5,7 +5,6 @@ from telegram.ext import Application, MessageHandler, filters
 import os
 import time
 from models.messages import TelegramMessage
-from utils.broadcaster import ws_client
 
 
 class TelegramListener(Listener):

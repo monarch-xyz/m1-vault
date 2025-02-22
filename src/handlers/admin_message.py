@@ -4,7 +4,6 @@ from .base_handler import BaseHandler
 from graphs.admin_react import react_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
-from utils.broadcaster import ws_client
 from utils.supabase import SupabaseClient
 
 class AdminMessageHandler(BaseHandler):
@@ -23,11 +22,6 @@ class AdminMessageHandler(BaseHandler):
     async def handle(self, event: BaseEvent):
         if self._is_admin_message(event):
 
-            # send websocket
-            await ws_client.broadcast_chat("admin", event.data.text, {
-                "sender": "admin",
-            })
-
             await SupabaseClient.store_message({
                 "text": event.data.text,
                 "sender": "admin",
@@ -36,10 +30,6 @@ class AdminMessageHandler(BaseHandler):
 
             message = TelegramMessage.model_validate(event.data)
             response = await self._process_admin_command(message)
-
-            await ws_client.broadcast_chat("agent", response, {
-                "sender": "agent",
-            })
 
             await SupabaseClient.store_message({
                 "text": response,

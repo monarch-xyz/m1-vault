@@ -5,7 +5,6 @@ from graphs.user_react import react_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 from utils.supabase import SupabaseClient
-from utils.broadcaster import ws_client
 import logging
 
 # Get the standard Python logger
@@ -38,9 +37,6 @@ class UserMessageHandler(BaseHandler):
 
                 # log the message
                 message_data.update({"from": "user"})
-                await ws_client.broadcast_chat("user", event.data.text, {
-                    "sender": event.data.sender,
-                })
 
                 # pass in a more detailed message to the agent, to access sender 
                 message_text = "TEXT: {text} \n======\n USER_ID: {sender}".format(text=event.data.text, sender=event.data.sender)
@@ -62,11 +58,6 @@ class UserMessageHandler(BaseHandler):
             }, config=config)
             
             response = state['messages'][-1].content
-
-            # Log the agent's response
-            await ws_client.broadcast_chat("agent", response, {
-                "sender": "agent",
-            })
 
             await SupabaseClient.store_message({
                 "text": response,

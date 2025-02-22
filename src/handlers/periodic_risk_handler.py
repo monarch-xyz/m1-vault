@@ -7,7 +7,6 @@ from langchain_core.messages import HumanMessage
 from web3 import Web3
 import os
 from graphs.risk_react import react_agent
-from utils.broadcaster import ws_client
 import logging
 
 # Get the standard Python logger
@@ -75,7 +74,6 @@ class PeriodicRiskHandler(BaseHandler):
 
         # for all messages in state[messages], find things we want to print
         content = state['messages'][-1].content
-        await ws_client.broadcast_report("hourly", content)
         await SupabaseClient.store_report("hourly",content)
 
         return content
