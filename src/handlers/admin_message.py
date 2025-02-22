@@ -5,6 +5,7 @@ from graphs.admin_react import react_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 from utils.broadcaster import ws_client
+from utils.supabase import SupabaseClient
 
 class AdminMessageHandler(BaseHandler):
     """ Entry point to handle admin messages (from telegram for now) """

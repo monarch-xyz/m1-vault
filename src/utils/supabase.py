@@ -64,12 +64,13 @@ class SupabaseClient:
             raise
 
     @classmethod
-    async def store_report(cls, text: str):
+    async def store_report(cls, sub_type, text: str):
         """Store announcement in the announcements table"""
         try:
             client = cls.get_client()
             data = {
                 "type": "report",
+                "sub_type": sub_type,
                 "text": text
             }
             result = client.table('memories').insert(data).execute()

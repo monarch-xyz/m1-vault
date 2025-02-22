@@ -76,7 +76,6 @@ class PeriodicRiskHandler(BaseHandler):
         # for all messages in state[messages], find things we want to print
         content = state['messages'][-1].content
         await ws_client.broadcast_report("hourly", content)
-
-        await SupabaseClient.store_report(content)
+        await SupabaseClient.store_report("hourly",content)
 
         return content
