@@ -218,8 +218,6 @@ def reallocate_simple(
         # Format allocations
         allocations = []
 
-        print("REALLOCATE FUNCTION TRIGGERED ------")
-        
         # Use the sync wrapper to get market params
         market_params = get_market_params_sync(market_ids)
         
@@ -256,8 +254,8 @@ def reallocate_simple(
         return message
     except Exception as e:
         print("Error during reallocation", e)
-        if hasattr(e, 'message'):
-            return e.message
+        if hasattr(e, 'api_message'):
+            return e.api_message
         else:
             return str(e)
 

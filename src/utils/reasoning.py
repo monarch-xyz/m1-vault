@@ -25,11 +25,14 @@ For example:
 - When the interest rate of a market is high, it could also be caused by massive withdrawals, you need to use the live volumn data to check if it's a normal activity or not.
 
 - When the interest rate of a market is low, you should check if it's caused by low utilization rate, and consider moving asset elsewhere to get higher APY.
-
 - When a new perpective is provided, you should consider that with the current vault status
+
+Output your ideas like when you're thinking out loud. Could be casual tone but on point, clear and brief about the reasonings.
 
 Basic Knoledge about Morpho Markets:
 - Markets have an optimal utilization rate of 90%, which is consider "balanced"
+
+Output your ideas like when you're thinking out loud. Could be casual tone but on point, clear and brief about the reasonings.
 
 """
 
@@ -83,36 +86,3 @@ def create_reasoning_tool(agent):
         return reasoning
         
     return market_analysis
-
-# For backward compatibility - this version doesn't broadcast
-@tool
-async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
-    """
-    Giving the data and current stats, conduct a thorough reasoing about the prompt related to market analysis.
-    Make sure to use this tool with other tools to gather data.
-
-    For example:
-    - Given the 35% rate of USDC-ezETH market, with low liquidity and high utilization rate (99%), is it a good idea to reallocate the asset to the market?
-
-    Args:
-        reasoning_prompt: The prompt to reason about
-        market_or_vault_data: The data you gather from other tools
-    """
-
-    final_message = f"""
-    {reasoning_prompt}
-
-    Data:
-    {market_or_vault_data}
-    """
-    
-    response = llm.invoke([
-        SystemMessage(content=prompt),
-        HumanMessage(content=final_message)
-    ])
-
-    reasoning = response.content
-
-    await SupabaseClient.store_thought("analysis", reasoning)
-
-    return reasoning
