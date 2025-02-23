@@ -37,6 +37,8 @@ class OnChainListener(Listener):
     
     def __init__(self, event_bus):
         self.event_bus = event_bus
+        self.is_running = False  # Add control flag
+        self.polling_task = None  # Store task reference
         
         # Initialize Web3
         self.web3 = Web3(Web3.HTTPProvider(Config.CHAIN_RPC_URL))
@@ -72,11 +74,29 @@ class OnChainListener(Listener):
         self.processors[name] = processor
 
     async def start(self):
-        asyncio.create_task(self._poll_loop())
+        """Start the block polling"""
+        self.is_running = True
+        self.polling_task = asyncio.create_task(self._poll_loop())
+        logger.info("Starting onchain listener...")
     
+    async def stop(self):
+        """Stop the block polling and cleanup"""
+        logger.info("Stopping onchain listener...")
+        self.is_running = False
+        
+        if self.polling_task:
+            self.polling_task.cancel()
+            try:
+                await self.polling_task
+            except asyncio.CancelledError:
+                pass
+            self.polling_task = None
+            
+        logger.info("Onchain listener stopped")
+
     async def _poll_loop(self):
         """Shared block polling for all processors"""
-        while True:
+        while self.is_running:  # Use control flag
             try:
                 latest_block = self.web3.eth.block_number
                 
@@ -93,8 +113,10 @@ class OnChainListener(Listener):
                 
                 await asyncio.sleep(10)
                 
+            except asyncio.CancelledError:
+                break  # Handle cancellation
             except Exception as e:
-                logger.error("BlockPolling Error", str(e))
+                logger.error(f"BlockPolling Error: {str(e)}")
                 await asyncio.sleep(60)
 
     async def _process_new_blocks(self, from_block: int, to_block: int):
@@ -104,10 +126,6 @@ class OnChainListener(Listener):
                 await processor.process_blocks(from_block, to_block)
             except Exception as e:
                 logger.error(f"Processor_{name} Error", str(e))
-
-    async def stop(self):
-        print("Stopping onchain listener...")
-
 
 # Example processor implementations
 class MorphoBlueProcessor(BaseEventProcessor):

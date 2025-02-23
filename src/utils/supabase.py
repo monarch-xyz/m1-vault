@@ -49,7 +49,7 @@ class SupabaseClient:
 
     @classmethod
     async def store_thought(cls, sub_type, text):
-        """Store thought in the thoughts table"""
+        """Store thought in the memories table"""
         try:
             client = cls.get_client()
             data = {
@@ -65,7 +65,7 @@ class SupabaseClient:
 
     @classmethod
     async def store_report(cls, sub_type, text: str):
-        """Store announcement in the announcements table"""
+        """Store report in the memories table"""
         try:
             client = cls.get_client()
             data = {
@@ -81,7 +81,7 @@ class SupabaseClient:
 
     @classmethod
     async def store_action(cls, sub_type, text: str):
-        """Store action in the actions table"""
+        """Store action in the memories table"""
         try:
             client = cls.get_client()
             data = {

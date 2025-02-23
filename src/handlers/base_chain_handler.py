@@ -41,7 +41,7 @@ class BaseChainEventHandler(BaseHandler):
                 logger.info(f"- {market.display_name} ({market.market_id})")
 
         except Exception as e:
-            logger.error("ChainHandler Init", str(e))
+            logger.error(f"ChainHandler Init: {str(e)}")
 
     @property
     def subscribes_to(self):
@@ -92,4 +92,4 @@ class BaseChainEventHandler(BaseHandler):
             await SupabaseClient.store_onchain_events(event_data)
                 
         except Exception as e:
-            logger.error("ChainHandler", str(e))
+            logger.error(f"ChainHandler: {str(e)}")

@@ -50,8 +50,7 @@ class PeriodicRiskHandler(BaseHandler):
             await self.analyze_risk(market_summaries)
             
         except Exception as e:
-            logger.error("PeriodicRiskHandler", f"Error in risk update: {str(e)}")
-
+            logger.error(f"PeriodicRiskHandler: Error in risk update: {str(e)}")
     async def analyze_risk(self, market_data):
         """Analyze market risk using LLM"""
         # Format data for LLM consumption
