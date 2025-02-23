@@ -1,19 +1,22 @@
 from .base_handler import BaseHandler
 from models.events import EventType
-from utils.logger import LogService, LogCategory
 from utils.market import MarketInfo, get_vault_markets
 from utils.supabase import SupabaseClient
 import asyncio
 from typing import Dict
+import logging
+
+# Get the standard Python logger
+logger = logging.getLogger(__name__)
+
 
 class BaseChainEventHandler(BaseHandler):
     """
     We process all on-chain events, and store them in Supabase
     """
 
-    def __init__(self, agent, logger: LogService):
+    def __init__(self, agent):
         super().__init__(agent)
-        self.logger = logger
         self.tracked_markets: Dict[str, MarketInfo] = {}  # market_id -> MarketInfo
         
         # Initialize tracked markets
@@ -33,12 +36,12 @@ class BaseChainEventHandler(BaseHandler):
                 for m in market_infos
             }
             
-            print(f"Initialized tracking for {len(self.tracked_markets)} markets:")
+            logger.info(f"Initialized tracking for {len(self.tracked_markets)} markets:")
             for market in market_infos:
-                print(f"- {market.display_name} ({market.market_id})")
+                logger.info(f"- {market.display_name} ({market.market_id})")
 
         except Exception as e:
-            await self.logger.error("ChainHandler Init", str(e))
+            logger.error(f"ChainHandler Init: {str(e)}")
 
     @property
     def subscribes_to(self):
@@ -89,4 +92,4 @@ class BaseChainEventHandler(BaseHandler):
             await SupabaseClient.store_onchain_events(event_data)
                 
         except Exception as e:
-            await self.logger.error("ChainHandler", str(e))
+            logger.error(f"ChainHandler: {str(e)}")

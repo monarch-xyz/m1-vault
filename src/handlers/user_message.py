@@ -4,17 +4,18 @@ from .base_handler import BaseHandler
 from graphs.user_react import react_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
-from utils.logger import LogService
 from utils.supabase import SupabaseClient
+import logging
 
+# Get the standard Python logger
+logger = logging.getLogger(__name__)
 
 class UserMessageHandler(BaseHandler):
     """Entry point to handle user messages (from telegram or onchain)"""
 
-    def __init__(self, agent, logger: LogService):
+    def __init__(self, agent):
         super().__init__(agent)
         self.llm = react_agent
-        self.logger = logger
         print(f"UserMessageHandler initialized")
 
     @property
@@ -36,7 +37,6 @@ class UserMessageHandler(BaseHandler):
 
                 # log the message
                 message_data.update({"from": "user"})
-                await self.logger.conversation("User Message", message_data)
 
                 # pass in a more detailed message to the agent, to access sender 
                 message_text = "TEXT: {text} \n======\n USER_ID: {sender}".format(text=event.data.text, sender=event.data.sender)
@@ -59,11 +59,11 @@ class UserMessageHandler(BaseHandler):
             
             response = state['messages'][-1].content
 
-            # Log the agent's response
-            await self.logger.conversation("Agent Response", {
-                "from": "agent",
-                "text": response
+            await SupabaseClient.store_message({
+                "text": response,
+                "sender": "agent",
+                "tx": None,
             })
 
         except Exception as e:
-            await self.logger.error("UserMessageHandler", str(e))
+            logger.error("UserMessageHandler", str(e))

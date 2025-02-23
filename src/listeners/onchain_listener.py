@@ -9,14 +9,16 @@ from web3.contract import Contract
 import json
 import os
 from models.messages import ChainMessage
-    
+import logging
+
+# Get the standard Python logger
+logger = logging.getLogger(__name__)
 
 class BaseEventProcessor:
     """Base class for contract-specific event processors"""
-    def __init__(self, contract: Contract, event_bus, logger, web3):
+    def __init__(self, contract: Contract, event_bus, web3):
         self.contract = contract
         self.event_bus = event_bus
-        self.logger = logger
         self.web3 = web3
         self.event_types = []
 
@@ -33,9 +35,10 @@ def load_abi(filename: str) -> dict:
 class OnChainListener(Listener):
     """Shared block polling with multiple contract processors"""
     
-    def __init__(self, event_bus, logger):
+    def __init__(self, event_bus):
         self.event_bus = event_bus
-        self.logger = logger
+        self.is_running = False  # Add control flag
+        self.polling_task = None  # Store task reference
         
         # Initialize Web3
         self.web3 = Web3(Web3.HTTPProvider(Config.CHAIN_RPC_URL))
@@ -59,11 +62,11 @@ class OnChainListener(Listener):
         # Initialize processors
         self.add_processor(
             "morpho_blue",
-            MorphoBlueProcessor(morpho_blue_contract, event_bus, logger, self.web3)
+            MorphoBlueProcessor(morpho_blue_contract, event_bus, self.web3)
         )
         self.add_processor(
             "morpho_vault",
-            MorphoVaultProcessor(vault_contract, event_bus, logger, self.web3)
+            MorphoVaultProcessor(vault_contract, event_bus, self.web3)
         )
     
     def add_processor(self, name: str, processor: BaseEventProcessor):
@@ -71,11 +74,29 @@ class OnChainListener(Listener):
         self.processors[name] = processor
 
     async def start(self):
-        asyncio.create_task(self._poll_loop())
+        """Start the block polling"""
+        self.is_running = True
+        self.polling_task = asyncio.create_task(self._poll_loop())
+        logger.info("Starting onchain listener...")
     
+    async def stop(self):
+        """Stop the block polling and cleanup"""
+        logger.info("Stopping onchain listener...")
+        self.is_running = False
+        
+        if self.polling_task:
+            self.polling_task.cancel()
+            try:
+                await self.polling_task
+            except asyncio.CancelledError:
+                pass
+            self.polling_task = None
+            
+        logger.info("Onchain listener stopped")
+
     async def _poll_loop(self):
         """Shared block polling for all processors"""
-        while True:
+        while self.is_running:  # Use control flag
             try:
                 latest_block = self.web3.eth.block_number
                 
@@ -92,8 +113,10 @@ class OnChainListener(Listener):
                 
                 await asyncio.sleep(10)
                 
+            except asyncio.CancelledError:
+                break  # Handle cancellation
             except Exception as e:
-                await self.logger.error("BlockPolling Error", str(e))
+                logger.error(f"BlockPolling Error: {str(e)}")
                 await asyncio.sleep(60)
 
     async def _process_new_blocks(self, from_block: int, to_block: int):
@@ -102,11 +125,7 @@ class OnChainListener(Listener):
             try:
                 await processor.process_blocks(from_block, to_block)
             except Exception as e:
-                await self.logger.error(f"Processor_{name} Error", str(e))
-
-    async def stop(self):
-        await self.logger.event("OnChainListener", "Stopping block polling...")
-
+                logger.error(f"Processor_{name} Error", str(e))
 
 # Example processor implementations
 class MorphoBlueProcessor(BaseEventProcessor):
@@ -134,7 +153,7 @@ class MorphoBlueProcessor(BaseEventProcessor):
 
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
-                await self.logger.error("MorphoBlue", str(e))
+                logger.error("MorphoBlue", str(e))
 
     def _parse_event(self, log):
         evm_event_type = log.event.lower()  # supply, withdraw, repay, borrow
@@ -214,7 +233,7 @@ class MorphoVaultProcessor(BaseEventProcessor):
                     message = message_bytes.decode('utf-8').strip()
                     
                     if message:  # Only process non-empty messages
-                        print(f"[MorphoVault] Decoded message: {message}")
+                        logger.info(f"[MorphoVault] Decoded message: {message}")
                         
                         data = ChainMessage(
                             text=message,
@@ -233,10 +252,10 @@ class MorphoVaultProcessor(BaseEventProcessor):
                         await self.event_bus.publish(EventType.USER_MESSAGE, event)
 
                 except (UnicodeDecodeError, ValueError) as e:
-                    print(f"[MorphoVault] Message decode error: {str(e)}")
+                    logger.error(f"[MorphoVault] Message decode error: {str(e)}")
 
             except Exception as e:
-                print(f"[MorphoVault] Error: {str(e)}")
+                logger.error(f"[MorphoVault] Error: {str(e)}")
 
     def _parse_event(self, log):
         parsed = dict(log.args)

@@ -5,9 +5,11 @@ from langchain_core.tools import tool
 from config import Config
 from langchain_core.documents import Document
 import os
+import chromadb
+import logging
 
-# same instance as the one in main.py
-from utils.logger import logger
+# Get the standard Python logger
+logger = logging.getLogger(__name__)
 
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
@@ -32,7 +34,7 @@ async def add_long_term_memory(summary: str, metadata: dict):
         metadata: {
           "timestamp": int,
           "user_id": str,
-          "type": str ("user", "information", "admin")
+          "type": str: "information","documentation","news"
         }
     """
     long_term_memory.add_documents([Document(
@@ -40,10 +42,7 @@ async def add_long_term_memory(summary: str, metadata: dict):
         metadata=metadata,
     )])
 
-    await logger.memory("Memory", {
-        "summary": summary,
-        "type": metadata["type"]
-    })
+    logger.info(f"Added {metadata['type']} to long term memory: {summary}")
 
 @tool
 async def get_long_term_memory(query: str, filter: dict):

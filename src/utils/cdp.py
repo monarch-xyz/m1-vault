@@ -2,6 +2,7 @@
 import os
 import logging
 import json
+import logging
 from typing import Optional, Tuple, Callable
 from cdp import Wallet
 from cdp.smart_contract import SmartContract
@@ -17,7 +18,10 @@ from eth_abi import encode
 from utils.constants import VAULT_ADDRESS
 from utils.market_api import MorphoAPIClient
 import asyncio
+from utils.supabase import SupabaseClient
 
+logger = logging.getLogger(__name__)
+    
 MORPHO_VAULT_ABI_PATH = Path(__file__).parent.parent / "abi" / "morpho-vault.json"
 with open(MORPHO_VAULT_ABI_PATH) as f:
     MORPHO_VAULT_ABI = json.load(f)
@@ -101,9 +105,9 @@ We want to move 100 USDC from market A to market B and market C, making the fina
 Parameters:
 ```
 market_ids: [
-    "a4e2843486610e6851f4e0a8fcdee819958598c71c7e99b0315904ccf162ddc3", ("market_a")
-    "8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda", ("market_b")
-    "13c42741a359ac4a8aa8287d2be109dcf28344484f91185f9a79bd5a805a55ae", ("market_c")
+    "a4e2843486610e6851f4e0a8fcdee819958598c71c7e99b0315904ccf162ddc3", ("market_a") (from)
+    "8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda", ("market_b") (to)
+    "13c42741a359ac4a8aa8287d2be109dcf28344484f91185f9a79bd5a805a55ae", ("market_c") (to)
 ]
 new_allocations: [200000000, 150000000, 150000000]
 ```
@@ -127,7 +131,7 @@ class MorphoReallocateInput(BaseModel):
 
 class MorphoReallocateInput2(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
-    market_ids: list[str] = Field(..., description="The IDs of the markets to reallocate assets from")
+    market_ids: list[str] = Field(..., description="The IDs of the markets to reallocate assets. From market first, then to markets.")
     new_allocations: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as market_ids) e.g. [200000000, 150000000, 150000000] for 200 USDC, 150 USDC, 150 USDC")
 
 class MorphoSharesInput(BaseModel):
@@ -218,7 +222,6 @@ def reallocate_simple(
         
         # Use the sync wrapper to get market params
         market_params = get_market_params_sync(market_ids)
-        print(market_params)
         
         for market_param, new_allocation in zip(market_params, new_allocations):
             allocations.append({
@@ -231,6 +234,8 @@ def reallocate_simple(
                 },
                 'assets': 2**256 - 1 if market_param == market_params[-1] else new_allocation
             })
+
+        logger.info(f"Allocations: {allocations}")
         
         # Encode reallocation call
         calldata = encode_reallocation(allocations)
@@ -244,8 +249,11 @@ def reallocate_simple(
         )
 
         print(invocation)
-        
-        return f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash} and transaction link: {invocation.transaction_link}"
+        message = f"Successfully reallocated USDC in Morpho Vault, with transaction hash: {invocation.transaction_hash}"
+
+        # Store the action, do not await
+        # SupabaseClient.store_action("reallocate", message)
+        return message
     except Exception as e:
         print("Error during reallocation", e)
         if hasattr(e, 'message'):
@@ -293,6 +301,9 @@ def get_user_shares(
         
         # Format shares with proper decimals
         shares_formatted = shares / (10 ** decimals)
+
+        # Store the action, do not await
+        # SupabaseClient.store_action("get_shares", f"User {user_address} owns {shares_formatted:,.6f} vault shares")
         
         return f"User {user_address} owns {shares_formatted:,.6f} vault shares"
     except Exception as e:

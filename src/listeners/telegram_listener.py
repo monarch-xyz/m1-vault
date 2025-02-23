@@ -6,12 +6,12 @@ import os
 import time
 from models.messages import TelegramMessage
 
+
 class TelegramListener(Listener):
-    def __init__(self, event_bus, logger):
+    def __init__(self, event_bus):
         self.event_bus = event_bus
         self.application = None
         self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        self.logger = logger
 
     async def start(self):
         """Initialize and start the Telegram bot"""

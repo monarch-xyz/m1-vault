@@ -4,15 +4,14 @@ from .base_handler import BaseHandler
 from graphs.admin_react import react_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
-from utils.logger import LogService
+from utils.supabase import SupabaseClient
 
 class AdminMessageHandler(BaseHandler):
     """ Entry point to handle admin messages (from telegram for now) """
 
-    def __init__(self, agent, logger: LogService):
+    def __init__(self, agent):
         super().__init__(agent)
         self.llm = react_agent
-        self.logger = logger
 
         print(f"AdminMessageHandler initialized")
 
@@ -22,17 +21,20 @@ class AdminMessageHandler(BaseHandler):
 
     async def handle(self, event: BaseEvent):
         if self._is_admin_message(event):
-            await self.logger.conversation("Admin Message", {
-                "from": "admin",
-                "text": event.data.text
+
+            await SupabaseClient.store_message({
+                "text": event.data.text,
+                "sender": "admin",
+                "tx": None,
             })
 
             message = TelegramMessage.model_validate(event.data)
             response = await self._process_admin_command(message)
 
-            await self.logger.conversation("Agent Response", {
-                "from": "agent",
-                "text": response
+            await SupabaseClient.store_message({
+                "text": response,
+                "sender": "agent",
+                "tx": None,
             })
 
             # send response back to the admin
