@@ -1,6 +1,6 @@
 import os
 from supabase import create_client, Client
-from typing import Optional
+from typing import Optional, Dict
 from datetime import datetime, timedelta, timezone
 
 class SupabaseClient:
@@ -26,74 +26,55 @@ class SupabaseClient:
         return cls._instance
 
     @classmethod
-    async def store_message(cls, data: dict):
-        """Store message in the user-messages table"""
+    async def _store_data(cls, table: str, data: Dict, error_context: str):
+        """Base method to store data in any table"""
         try:
             client = cls.get_client()
-            result = client.table('user-messages').insert(data).execute()
+            result = client.table(table).insert(data).execute()
             return result
         except Exception as e:
-            print(f"Error storing message: {e}")
+            print(f"Error storing {error_context}: {e}")
             raise
+
+    @classmethod
+    async def _store_memory_table(cls, memory_type: str, sub_type: str, text: str):
+        """Base method to store data in the memories table, most information is stored here"""
+        data = {
+            "type": memory_type,
+            "sub_type": sub_type,
+            "text": text
+        }
+        return await cls._store_data('memories', data, f"memory ({memory_type})")
+
+    @classmethod
+    async def store_message(cls, data: dict):
+        """Store message in the user-messages table"""
+        return await cls._store_data('user-messages', data, "message")
 
     @classmethod
     async def store_onchain_events(cls, data: dict):
-        """Store message in the user-messages table"""
-        try:
-            client = cls.get_client()
-            result = client.table('onchain-events').insert(data).execute()
-            return result
-        except Exception as e:
-            print(f"Error storing message: {e}")
-            raise
+        """Store onchain events"""
+        return await cls._store_data('onchain-events', data, "onchain event")
 
     @classmethod
-    async def store_thought(cls, sub_type, text):
-        """Store thought in the memories table"""
-        try:
-            client = cls.get_client()
-            data = {
-                "type": "think" ,
-                "text": text,
-                "sub_type": sub_type
-            }
-            result = client.table('memories').insert(data).execute()
-            return result
-        except Exception as e:
-            print(f"Error storing thought: {e}")
-            raise
+    async def store_market_snapshot(cls, data: dict):
+        """Store market snapshot"""
+        return await cls._store_data('market-snapshots', data, "market snapshot")
 
     @classmethod
-    async def store_report(cls, sub_type, text: str):
-        """Store report in the memories table"""
-        try:
-            client = cls.get_client()
-            data = {
-                "type": "report",
-                "sub_type": sub_type,
-                "text": text
-            }
-            result = client.table('memories').insert(data).execute()
-            return result
-        except Exception as e:
-            print(f"Error storing memories: {e}")
-            raise
+    async def store_thought(cls, sub_type: str, text: str):
+        """Store thought in memories"""
+        return await cls._store_memory_table("think", sub_type, text)
 
     @classmethod
-    async def store_action(cls, sub_type, text: str):
-        """Store action in the memories table"""
-        try:
-            client = cls.get_client()
-            data = {
-                "type": "action",
-                "sub_type": sub_type,
-                "text": text
-            }
-            result = client.table('memories').insert(data).execute()
-            return result
-        except Exception as e:
-            print(f"Error storing action: {e}")
-            raise
+    async def store_report(cls, sub_type: str, text: str):
+        """Store report in memories"""
+        return await cls._store_memory_table("report", sub_type, text)
+
+    @classmethod
+    async def store_action(cls, sub_type: str, text: str):
+        """Store action in memories"""
+        return await cls._store_memory_table("action", sub_type, text)
 
     @classmethod
     async def get_filtered_market_events(cls, hours_ago: int = 1):
@@ -101,7 +82,7 @@ class SupabaseClient:
         try:
             client = cls.get_client()
             
-            # Calculate time range with explicit timezone format
+            # Calculate time range with explicit timezone
             end_time = datetime.now(timezone.utc)
             start_time = end_time - timedelta(hours=hours_ago)
             
@@ -120,14 +101,3 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error fetching filtered events: {str(e)}")
             return None
-
-    @classmethod
-    async def store_market_snapshot(cls, data: dict):
-        """Store market snapshot in the market-snapshots table"""
-        try:
-            client = cls.get_client()
-            result = client.table('market-snapshots').insert(data).execute()
-            return result
-        except Exception as e:
-            print(f"Error storing market snapshot: {e}")
-            raise
