@@ -28,4 +28,4 @@ ENV PYTHONPATH="/app:/app/src"
 
 EXPOSE 8000
 
-CMD ["python", "src/main.py", "--port=8000"]
+CMD ["python", "-u", "src/main.py", "--port=8000"]
