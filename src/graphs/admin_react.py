@@ -24,7 +24,7 @@ tools = [
     market_analysis
 ]
 
-executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
+executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=True)
 
 # use a ReAct node to automatically choose tools and execute transactions
 react_agent = create_react_agent(

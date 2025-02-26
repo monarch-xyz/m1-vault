@@ -17,6 +17,7 @@ tools = [
     market_analysis
 ]
 
+# Use a smarter model for reasoning and generate upadates
 executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 
 # use a ReAct node to process input data and decide if any action is needed.
