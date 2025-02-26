@@ -5,6 +5,7 @@ from graphs.admin_react import react_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 from utils.supabase import SupabaseClient
+from utils.activity_types import MESSAGE_RECEIVED, MESSAGE_RESPONDING, IDLE
 
 class AdminMessageHandler(BaseHandler):
     """ Entry point to handle admin messages (from telegram for now) """
@@ -21,6 +22,11 @@ class AdminMessageHandler(BaseHandler):
 
     async def handle(self, event: BaseEvent):
         if self._is_admin_message(event):
+            # Broadcast that we received a message
+            await self.agent.broadcast_activity(MESSAGE_RECEIVED, {
+                "sender": "admin",
+                "timestamp": event.timestamp
+            })
 
             await SupabaseClient.store_message({
                 "text": event.data.text,
@@ -39,6 +45,8 @@ class AdminMessageHandler(BaseHandler):
 
             # send response back to the admin
             await send_telegram_message_async(message.chat_id, response)
+
+            await self.agent.broadcast_activity(IDLE, {})
 
     def _is_admin_message(self, event):
         # Implement admin check logic

@@ -2,6 +2,10 @@ from .base_handler import BaseHandler
 from models.events import EventType
 from utils.market import MarketInfo, get_vault_markets
 from utils.supabase import SupabaseClient
+from utils.activity_types import (
+    MB_DEPOSIT_DETECTED, MB_WITHDRAWAL_DETECTED, 
+    MB_BORROW_DETECTED, MB_REPAY_DETECTED
+)
 import asyncio
 from typing import Dict
 import logging
@@ -53,7 +57,7 @@ class BaseChainEventHandler(BaseHandler):
             return
 
         try:
-            # Pass vault events
+            # Skip vault events for now
             if event.data.get('source') == "morpho_vault":
                 return
 
@@ -88,8 +92,40 @@ class BaseChainEventHandler(BaseHandler):
                 }
             }
 
-            # Store thought in Supabase
+            # Store event in Supabase
             await SupabaseClient.store_onchain_events(event_data)
+            
+            # Broadcast activity based on event type
+            await self._broadcast_morpho_blue_activity(event.data, market_id, assets)
                 
         except Exception as e:
             logger.error(f"ChainHandler: {str(e)}")
+    
+    async def _broadcast_morpho_blue_activity(self, event_data, market_id, assets):
+        """Broadcast activity for Morpho Blue events"""
+        event_type = event_data.get('evm_event', '')
+        
+        # Map event type to activity type
+        activity_type = None
+        if event_type == 'supply':
+            activity_type = MB_DEPOSIT_DETECTED
+        elif event_type == 'withdraw':
+            activity_type = MB_WITHDRAWAL_DETECTED
+        elif event_type == 'borrow':
+            activity_type = MB_BORROW_DETECTED
+        elif event_type == 'repay':
+            activity_type = MB_REPAY_DETECTED
+        else:
+            return  # Unsupported event type
+        
+        # Get market info for display name
+        market_info = self.tracked_markets.get(market_id)
+        
+        # Broadcast activity
+        await self.agent.broadcast_activity(activity_type, {
+            "market_id": market_id,
+            "tx_hash": event_data.get('tx_hash'),
+            "sender": event_data.get('caller', ''),
+            "amount": assets / 1e6,  # Convert to USDC units
+            "timestamp": event_data.get('timestamp', 0)
+        })

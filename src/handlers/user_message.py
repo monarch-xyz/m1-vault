@@ -3,7 +3,6 @@ from models.messages import TelegramMessage, ChainMessage
 from .base_handler import BaseHandler
 from graphs.user_react import react_agent
 from langchain_core.messages import HumanMessage
-from utils import send_telegram_message_async
 from utils.supabase import SupabaseClient
 import logging
 

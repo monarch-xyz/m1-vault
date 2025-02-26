@@ -3,6 +3,7 @@ from handlers.base_handler import BaseHandler
 from models.events import EventType
 from utils.market import get_all_market_history, format_market_history, get_vault_allocations_summary
 from utils.supabase import SupabaseClient
+from utils.activity_types import PERIODIC_ANALYSIS_STARTED, PERIODIC_ANALYSIS_COMPLETED
 from langchain_core.messages import HumanMessage
 from web3 import Web3
 import os
@@ -29,6 +30,12 @@ class PeriodicRiskHandler(BaseHandler):
     async def handle(self, event):
         """Handle periodic risk update events"""
         try:
+            # Broadcast analysis start
+            await self.agent.broadcast_activity(PERIODIC_ANALYSIS_STARTED, {
+                "interval_hours": self.hours_ago,
+                "timestamp": datetime.now().timestamp()
+            })
+
             # Get consolidated market data
             market_summaries = await get_all_market_history(self.web3, self.hours_ago)
             
@@ -47,10 +54,17 @@ class PeriodicRiskHandler(BaseHandler):
                 await SupabaseClient.store_market_snapshot(snapshot)
             
             # Pass data to risk analysis
-            await self.analyze_risk(market_summaries)
+            result = await self.analyze_risk(market_summaries)
+            
+            # Broadcast analysis completion
+            await self.agent.broadcast_activity(PERIODIC_ANALYSIS_COMPLETED, {
+                "interval_hours": self.hours_ago,
+                "report_length": len(result) if result else 0
+            })
             
         except Exception as e:
             logger.error(f"PeriodicRiskHandler: Error in risk update: {str(e)}")
+            
     async def analyze_risk(self, market_data):
         """Analyze market risk using LLM"""
         # Format data for LLM consumption
