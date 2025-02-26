@@ -31,6 +31,9 @@ class TimerListener(Listener):
 
     async def _emit_risk_events(self):
         """Emit periodic risk update events"""
+        # Add initial delay to prevent immediate trigger
+        await asyncio.sleep(self.intervals['RISK_UPDATE'])
+        
         while self.is_running:
             try:
                 # Create and emit event
@@ -49,4 +52,4 @@ class TimerListener(Listener):
                 print("TimerListener", f"Error emitting risk event: {str(e)}")
             
             # Wait for next interval
-            await asyncio.sleep(self.intervals['RISK_UPDATE']) 
+            await asyncio.sleep(self.intervals['RISK_UPDATE'])
