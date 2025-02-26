@@ -1,7 +1,7 @@
 from models.events import EventType, BaseEvent
 from models.messages import TelegramMessage
 from .base_handler import BaseHandler
-from graphs.admin_react import react_agent
+from graphs.admin_react import create_admin_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 from utils.supabase import SupabaseClient
@@ -12,7 +12,7 @@ class AdminMessageHandler(BaseHandler):
 
     def __init__(self, agent):
         super().__init__(agent)
-        self.llm = react_agent
+        self.llm = create_admin_agent(agent)
 
         print(f"AdminMessageHandler initialized")
 

@@ -7,7 +7,7 @@ from utils.activity_types import PERIODIC_ANALYSIS_STARTED, PERIODIC_ANALYSIS_CO
 from langchain_core.messages import HumanMessage
 from web3 import Web3
 import os
-from graphs.risk_react import react_agent
+from graphs.risk_react import create_risk_agent
 import logging
 
 # Get the standard Python logger
@@ -21,7 +21,8 @@ class PeriodicRiskHandler(BaseHandler):
         # Initialize Web3
         self.web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
         self.hours_ago = 1
-        self.llm = react_agent
+        # Create the risk agent with access to broadcast capabilities
+        self.llm = create_risk_agent(agent)
     
     @property
     def subscribes_to(self):

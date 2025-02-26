@@ -26,4 +26,12 @@ PERIODIC_ANALYSIS_COMPLETED = "periodic_analysis_completed"
 TX_REALLOCATION = "tx_reallocation"
 TX_GET_ASSET_SHARE = "tx_get_asset_share"
 
+# Add these new activity types
+MARKET_DATA_FETCHED = "market_data_fetched"
+VAULT_DATA_FETCHED = "vault_data_fetched"
+
+# Add reasoning activity types
+REASONING_STARTED = "reasoning_started"
+REASONING_COMPLETED = "reasoning_completed"
+
 
