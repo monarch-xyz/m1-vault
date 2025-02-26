@@ -4,18 +4,14 @@ from langgraph.prebuilt import create_react_agent
 
 from pydantic import BaseModel
 from config import Config
-from utils import get_reallocation_tool
 import json
 from utils.reasoning import market_analysis
 from utils.model_util import get_llm
 from utils.constants import VAULT_ADDRESS
-
+from utils.cdp import cdp_tools
 from langgraph.checkpoint.memory import MemorySaver
 
-tools = [
-    get_reallocation_tool(),
-    market_analysis
-]
+tools = [market_analysis] + cdp_tools
 
 executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
 
