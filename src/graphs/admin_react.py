@@ -4,14 +4,13 @@ from langgraph.prebuilt import create_react_agent
 
 from pydantic import BaseModel
 from config import Config
-from utils import get_reallocation_tool
 import json
 from utils.market_tools import create_market_tools
 from utils.memory import add_long_term_memory, get_long_term_memory
 from utils.reasoning import create_reasoning_tool
 from utils.model_util import get_llm
 from utils.constants import VAULT_ADDRESS
-
+from utils.cdp import cdp_tools
 from langgraph.checkpoint.memory import MemorySaver
 memory = MemorySaver()
 
@@ -25,8 +24,8 @@ def create_admin_agent(agent):
     
     tools = [
         # Disable temporary reallocation tool
-        get_reallocation_tool(),
         *market_tools,  # Use tools with broadcasting capability
+        *cdp_tools,
         add_long_term_memory,
         get_long_term_memory,
         market_analysis

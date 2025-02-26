@@ -4,13 +4,13 @@ from langgraph.prebuilt import create_react_agent
 
 from pydantic import BaseModel
 from config import Config
-from utils import get_user_shares_tool
 import json
 from utils.market_tools import create_market_tools
 from utils.constants import VAULT_ADDRESS
-from utils.memory import add_long_term_memory, get_long_term_memory
+from utils.memory import get_long_term_memory
 from utils.model_util import get_llm
 from utils.reasoning import create_reasoning_tool
+from utils.cdp import cdp_tools
 
 from langgraph.checkpoint.memory import MemorySaver
 memory = MemorySaver()
@@ -24,8 +24,8 @@ def create_user_agent(agent):
     market_analysis = create_reasoning_tool(agent)
     
     tools = [
-        get_user_shares_tool(),
         *market_tools,
+        *cdp_tools,
         get_long_term_memory,
         market_analysis,
     ]
