@@ -5,7 +5,6 @@ from langchain_core.tools import tool
 from config import Config
 from langchain_core.documents import Document
 import os
-import chromadb
 import logging
 
 # Get the standard Python logger

@@ -4,24 +4,22 @@ from langgraph.prebuilt import create_react_agent
 
 from pydantic import BaseModel
 from config import Config
-from utils import get_user_shares_tool
 import json
 from utils.market_tools import fetch_all_morpho_markets, fetch_vault_market_status
 from utils.constants import VAULT_ADDRESS
 from utils.memory import add_long_term_memory, get_long_term_memory
 from utils.model_util import get_llm
 from utils.reasoning import market_analysis
-
+from utils.cdp import read_only_tools
 from langgraph.checkpoint.memory import MemorySaver
 memory = MemorySaver()
 
 tools = [
-    get_user_shares_tool(),
     fetch_vault_market_status,
     fetch_all_morpho_markets,
     get_long_term_memory,
     market_analysis,
-]
+] + read_only_tools
 
 # use cheaper model for user interaction
 executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=True)
