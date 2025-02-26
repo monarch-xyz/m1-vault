@@ -11,9 +11,9 @@ import logging
 # Get the standard Python logger
 logger = logging.getLogger(__name__)
 
-
 # use smarter model for reasoning
-llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
+# for cost saving, we use the interpreter model
+llm = get_llm(Config.MODEL_TYPE, is_interpreter=True)
 
 prompt = """You are a DeFi expert in lending protocols.
 Your job is to reason about the prompt and the data, and provide a detailed analysis.
