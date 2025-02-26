@@ -55,18 +55,10 @@ class Agent:
         """Start the agent and notify connected clients"""
         self.running = True
         await self.event_bus.publish(EventType.SYSTEM_START)
-        if self._ws_manager:
-            await self.broadcast_activity(AGENT_STARTED, {
-                "message": "Agent started successfully"
-            })
-    
+        
     async def stop(self):
         """Stop the agent and notify connected clients"""
         self.running = False
-        if self._ws_manager:
-            await self.broadcast_activity(AGENT_STOPPING, {
-                "message": "Agent shutting down"
-            })
         await self.event_bus.publish(EventType.SYSTEM_SHUTDOWN)
 
 __all__ = ['Agent', 'Listener'] 
