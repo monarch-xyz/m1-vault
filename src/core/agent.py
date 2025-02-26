@@ -52,12 +52,10 @@ class Agent:
             await self._ws_manager.broadcast_activity(activity)
     
     async def start(self):
-        """Start the agent and notify connected clients"""
         self.running = True
         await self.event_bus.publish(EventType.SYSTEM_START)
-        
+
     async def stop(self):
-        """Stop the agent and notify connected clients"""
         self.running = False
         await self.event_bus.publish(EventType.SYSTEM_SHUTDOWN)
 
