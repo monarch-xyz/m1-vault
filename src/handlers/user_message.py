@@ -4,6 +4,7 @@ from .base_handler import BaseHandler
 from graphs.user_react import create_user_agent
 from langchain_core.messages import HumanMessage
 from utils.supabase import SupabaseClient
+from utils.activity_types import MESSAGE_RECEIVED
 import logging
 
 # Get the standard Python logger
@@ -30,6 +31,12 @@ class UserMessageHandler(BaseHandler):
                     "sender": event.data.sender,
                     "tx": event.data.transaction_hash,
                 }
+
+                # Broadcast that we received a message
+                await self.agent.broadcast_activity(MESSAGE_RECEIVED, {
+                    "sender": event.data.sender,
+                    "timestamp": event.timestamp
+                })
 
                 # Store message in Supabase
                 await SupabaseClient.store_message(message_data)
