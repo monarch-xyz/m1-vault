@@ -6,30 +6,40 @@ from pydantic import BaseModel
 from config import Config
 from utils import get_reallocation_tool
 import json
-from utils.reasoning import market_analysis
+from utils.market_tools import create_market_tools
+from utils.reasoning import create_reasoning_tool
 from utils.model_util import get_llm
 from utils.constants import VAULT_ADDRESS
 
 from langgraph.checkpoint.memory import MemorySaver
 
-tools = [
-    get_reallocation_tool(),
-    market_analysis
-]
-
-# Use a smarter model for reasoning and generate upadates
-executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
-
-# use a ReAct node to process input data and decide if any action is needed.
-react_agent = create_react_agent(
-    executor_llm,
-    tools=tools,
-    state_modifier="""
-    You are an DeFi lending risk manager who monitor the real time data of a Morpho Vault, made up of multiple markets.
-
-    You will be periodically given a summary of current vault and market data, and you need to figure out the best reallocation strategy. 
-    You should reply like giving an update to the community, be breif and to the point. (not a conversation)
+# Factory function to create the agent with access to the WebSocket manager
+def create_risk_agent(agent):
+    # Get market tools with agent access for WebSocket broadcasting
+    market_tools = create_market_tools(agent)
     
-    """.format(VAULT_ADDRESS),
-)
+    # Get reasoning tool with agent access
+    market_analysis = create_reasoning_tool(agent)
+    
+    tools = [
+        get_reallocation_tool(),
+        *market_tools,  # Use tools with broadcasting capability
+        market_analysis
+    ]
+    
+    # Use a smarter model for reasoning and generate updates
+    executor_llm = get_llm(Config.MODEL_TYPE, is_interpreter=False)
+    
+    # Create the React agent with the tools
+    react_agent = create_react_agent(
+        executor_llm,
+        tools=tools,
+        state_modifier="""
+        You are a DeFi lending risk manager who monitors the real-time data of a Morpho Vault, made up of multiple markets.
 
+        You will be periodically given a summary of current vault and market data, and you need to figure out the best reallocation strategy. 
+        You should reply like giving an update to the community, be brief and to the point. (not a conversation)
+        """.format(VAULT_ADDRESS),
+    )
+    
+    return react_agent

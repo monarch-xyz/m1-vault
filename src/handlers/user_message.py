@@ -1,9 +1,8 @@
 from models.events import EventType, BaseEvent
 from models.messages import TelegramMessage, ChainMessage
 from .base_handler import BaseHandler
-from graphs.user_react import react_agent
+from graphs.user_react import create_user_agent
 from langchain_core.messages import HumanMessage
-from utils import send_telegram_message_async
 from utils.supabase import SupabaseClient
 import logging
 
@@ -15,7 +14,7 @@ class UserMessageHandler(BaseHandler):
 
     def __init__(self, agent):
         super().__init__(agent)
-        self.llm = react_agent
+        self.llm = create_user_agent(agent)
         print(f"UserMessageHandler initialized")
 
     @property
