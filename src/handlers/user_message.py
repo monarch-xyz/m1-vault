@@ -16,7 +16,7 @@ class UserMessageHandler(BaseHandler):
     def __init__(self, agent):
         super().__init__(agent)
         self.llm = create_user_agent(agent)
-        print(f"UserMessageHandler initialized")
+        logger.info(f"UserMessageHandler initialized")
 
     @property
     def subscribes_to(self):

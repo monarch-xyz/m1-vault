@@ -1,26 +1,109 @@
-from typing import Dict
-from core.agent import Listener
-from models.events import EventType, BaseEvent
 import time
 import asyncio
+import json
+import os
+import logging
+from typing import Dict
+from core.agent import Listener
+from web3._utils.events import get_event_data
+from web3.utils.abi import get_event_abi
+from models.events import EventType, BaseEvent
+from hexbytes import HexBytes
 from web3 import Web3
 from config import Config
 from web3.contract import Contract
-import json
-import os
+
 from models.messages import ChainMessage
-import logging
+from utils.constants import MORPHO_BLUE_ADDRESS, VAULT_ADDRESS
+
 
 # Get the standard Python logger
 logger = logging.getLogger(__name__)
 
+MB_SUPPLY_TOPIC = "0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0"
+MB_WITHDRAW_TOPIC = "0xa56fc0ad5702ec05ce63666221f796fb62437c32db1aa1aa075fc6484cf58fbf"
+MB_BORROW_TOPIC = "0x570954540bed6b1304a87dfe815a5eda4a648f7097a16240dcd85c9b5fd42a43"
+MB_REPAY_TOPIC = "0x52acb05cebbd3cd39715469f22afbf5a17496295ef3bc9bb5944056c63ccaa09"
+
+# Todo: Change Vault to batch fetch from topic, if we need more events in the future
+# MV_DEPOSIT_TOPIC = "0xdcbc1c05240f31ff3ad067ef1ee35ce4997762752e3a095284754544f4c709d7"
+
+def get_event_abi_from_topic(abi: dict, topic0: HexBytes) -> dict:
+    """Get the ABI for a specific event"""
+    
+    # convert hexbytes to hex string
+    topic0 = "0x" + topic0.hex()
+
+    # find according ABI for the specific event
+    if topic0 == MB_SUPPLY_TOPIC:
+        event_abi = get_event_abi(morpho_blue_abi, 'Supply')
+    elif topic0 == MB_WITHDRAW_TOPIC:
+        event_abi = get_event_abi(morpho_blue_abi, 'Withdraw')
+    elif topic0 == MB_BORROW_TOPIC:
+        event_abi = get_event_abi(morpho_blue_abi, 'Borrow')
+    elif topic0 == MB_REPAY_TOPIC:
+        event_abi = get_event_abi(morpho_blue_abi, 'Repay')
+    else:
+        logger.error(f"Unknown event type: {topic0}")
+        return None
+
+    return event_abi
+
 class BaseEventProcessor:
     """Base class for contract-specific event processors"""
-    def __init__(self, contract: Contract, event_bus, web3):
+    def __init__(self, contract: Contract, event_bus, web3, polling_interval=10):
         self.contract = contract
         self.event_bus = event_bus
         self.web3 = web3
         self.event_types = []
+        self.polling_interval = polling_interval
+        self.is_running = False
+        self.polling_task = None
+        self.last_processed_block = 0
+
+    async def start(self):
+        """Start the processor's polling loop"""
+        self.is_running = True
+        self.polling_task = asyncio.create_task(self._poll_loop())
+        logger.info(f"Starting processor {self.__class__.__name__}...")
+
+    async def stop(self):
+        """Stop the processor's polling loop"""
+        logger.info(f"Stopping processor {self.__class__.__name__}...")
+        self.is_running = False
+        
+        if self.polling_task:
+            self.polling_task.cancel()
+            try:
+                await self.polling_task
+            except asyncio.CancelledError:
+                pass
+            self.polling_task = None
+
+    async def _poll_loop(self):
+        """Block polling for this processor"""
+        while self.is_running:
+            try:
+                latest_block = self.web3.eth.block_number
+                
+                # when we restart, scan back 10 blocks
+                if self.last_processed_block == 0:
+                    self.last_processed_block = latest_block - 10
+
+                if latest_block > self.last_processed_block:
+                    await self.process_blocks(
+                        from_block=self.last_processed_block + 1,
+                        to_block=latest_block
+                    )
+                    self.last_processed_block = latest_block
+                
+                await asyncio.sleep(self.polling_interval)
+                
+            except asyncio.CancelledError:
+                break  # Handle cancellation
+            except Exception as e:
+                logger.error(f"{self.__class__.__name__} Polling Error: {str(e)}")
+                await asyncio.sleep(self.polling_interval)
 
     async def process_blocks(self, from_block: int, to_block: int):
         """Process events in block range (to be implemented per contract)"""
@@ -32,41 +115,37 @@ def load_abi(filename: str) -> dict:
     with open(path) as f:
         return json.load(f)
 
+morpho_blue_abi = load_abi('morpho-blue.json')
+morpho_vault_abi = load_abi('morpho-vault.json')
+
 class OnChainListener(Listener):
     """Shared block polling with multiple contract processors"""
     
     def __init__(self, event_bus):
         self.event_bus = event_bus
-        self.is_running = False  # Add control flag
-        self.polling_task = None  # Store task reference
+        self.processors: Dict[str, BaseEventProcessor] = {}
         
         # Initialize Web3
         self.web3 = Web3(Web3.HTTPProvider(Config.CHAIN_RPC_URL))
-        self.processors: Dict[str, BaseEventProcessor] = {}
-        self.last_processed_block = 0
-
-        # Load contract ABIs
-        morpho_blue_abi = load_abi('morpho-blue.json')
-        morpho_vault_abi = load_abi('morpho-vault.json')
 
         # Initialize contracts
         morpho_blue_contract = self.web3.eth.contract(
-            address='0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb',
+            address=MORPHO_BLUE_ADDRESS,
             abi=morpho_blue_abi
         )
         vault_contract = self.web3.eth.contract(
-            address='0x346AAC1E83239dB6a6cb760e95E13258AD3d1A6d',
+            address=VAULT_ADDRESS,
             abi=morpho_vault_abi
         )
 
-        # Initialize processors
+        # Initialize processors with different polling intervals
         self.add_processor(
             "morpho_blue",
-            MorphoBlueProcessor(morpho_blue_contract, event_bus, self.web3)
+            MorphoBlueProcessor(morpho_blue_contract, event_bus, self.web3, polling_interval=60)
         )
         self.add_processor(
             "morpho_vault",
-            MorphoVaultProcessor(vault_contract, event_bus, self.web3)
+            MorphoVaultProcessor(vault_contract, event_bus, self.web3, polling_interval=15)
         )
     
     def add_processor(self, name: str, processor: BaseEventProcessor):
@@ -74,72 +153,51 @@ class OnChainListener(Listener):
         self.processors[name] = processor
 
     async def start(self):
-        """Start the block polling"""
-        self.is_running = True
-        self.polling_task = asyncio.create_task(self._poll_loop())
+        """Start all processors"""
         logger.info("Starting onchain listener...")
+        for name, processor in self.processors.items():
+            await processor.start()
     
     async def stop(self):
-        """Stop the block polling and cleanup"""
+        """Stop all processors and cleanup"""
         logger.info("Stopping onchain listener...")
-        self.is_running = False
-        
-        if self.polling_task:
-            self.polling_task.cancel()
-            try:
-                await self.polling_task
-            except asyncio.CancelledError:
-                pass
-            self.polling_task = None
-            
+        stop_tasks = [processor.stop() for processor in self.processors.values()]
+        await asyncio.gather(*stop_tasks)
         logger.info("Onchain listener stopped")
 
-    async def _poll_loop(self):
-        """Shared block polling for all processors"""
-        while self.is_running:  # Use control flag
-            try:
-                latest_block = self.web3.eth.block_number
-                
-                # when we restart, scan back 10 blocks
-                if self.last_processed_block == 0:
-                    self.last_processed_block = latest_block - 10
-
-                if latest_block > self.last_processed_block:
-                    await self._process_new_blocks(
-                        from_block=self.last_processed_block + 1,
-                        to_block=latest_block
-                    )
-                    self.last_processed_block = latest_block
-                
-                await asyncio.sleep(10)
-                
-            except asyncio.CancelledError:
-                break  # Handle cancellation
-            except Exception as e:
-                logger.error(f"BlockPolling Error: {str(e)}")
-                await asyncio.sleep(60)
-
-    async def _process_new_blocks(self, from_block: int, to_block: int):
-        """Notify all processors about new block range"""
-        for name, processor in self.processors.items():
-            try:
-                await processor.process_blocks(from_block, to_block)
-            except Exception as e:
-                logger.error(f"Processor_{name} Error", str(e))
+    # _poll_loop and _process_new_blocks methods are now removed as they're moved to BaseEventProcessor
 
 # Example processor implementations
 class MorphoBlueProcessor(BaseEventProcessor):
     """Process MorphoBlue lending market events"""
     
+    def __init__(self, contract, event_bus, web3, polling_interval=60):
+        super().__init__(contract, event_bus, web3, polling_interval)
+    
     async def process_blocks(self, from_block: int, to_block: int):
         # Get all relevant events in one batch
-        supply_events = self.contract.events.Supply().get_logs(from_block=from_block, to_block=to_block)
-        withdraw_events = self.contract.events.Withdraw().get_logs(from_block=from_block, to_block=to_block)
-        repay_events = self.contract.events.Repay().get_logs(from_block=from_block, to_block=to_block)
-        borrow_events = self.contract.events.Borrow().get_logs(from_block=from_block, to_block=to_block)
+        logger.info(f"MorphoBlue: Processing blocks {from_block} to {to_block}")
+
+        event_filter = self.web3.eth.filter({
+            "address": MORPHO_BLUE_ADDRESS,
+            "topics": [[
+                # Topic 0 = Supply OR Withdraw OR Borrow OR Repay
+                MB_SUPPLY_TOPIC,
+                MB_WITHDRAW_TOPIC,
+                MB_BORROW_TOPIC,
+                MB_REPAY_TOPIC
+            ]],
+            "fromBlock": from_block,
+            "toBlock": to_block
+        })
+        events = event_filter.get_all_entries()
 
         # Process and publish events
-        for log in supply_events + withdraw_events + repay_events + borrow_events:
+        for raw_log in events:
+            # find according ABI for the specific event
+            event_abi = get_event_abi_from_topic(morpho_blue_abi, raw_log['topics'][0])
+            log = get_event_data(self.web3.codec, event_abi, raw_log)
+
             try:
                 data = self._parse_event(log)
                 # We need to publish with event type and event data separately
@@ -158,7 +216,7 @@ class MorphoBlueProcessor(BaseEventProcessor):
     def _parse_event(self, log):
         evm_event_type = log.event.lower()  # supply, withdraw, repay, borrow
         parsed = dict(log.args)
-        
+
         # Convert bytes to hex string for market_id
         market_id = parsed.get('id', b'').hex() if isinstance(parsed.get('id'), bytes) else ''
         
@@ -178,7 +236,11 @@ class MorphoBlueProcessor(BaseEventProcessor):
 class MorphoVaultProcessor(BaseEventProcessor):
     """Process Morpho Vault deposit events"""
     
+    def __init__(self, contract, event_bus, web3, polling_interval=10):
+        super().__init__(contract, event_bus, web3, polling_interval)
+    
     async def process_blocks(self, from_block: int, to_block: int):
+        logger.info(f"MorphoVault: Processing blocks {from_block} to {to_block}")
         deposit_events = self.contract.events.Deposit().get_logs(from_block=from_block, to_block=to_block)
         
         for log in deposit_events:
@@ -193,7 +255,7 @@ class MorphoVaultProcessor(BaseEventProcessor):
                 )
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
-                print(f"[MorphoVault] Event process error: {str(e)}")
+                logger.error(f"[MorphoVault] Event process error: {str(e)}")
 
             # Parse attached bytes as user message
             try:
