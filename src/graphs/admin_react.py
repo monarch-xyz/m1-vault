@@ -38,6 +38,7 @@ def create_admin_agent(agent):
         executor_llm,
         tools=tools,
         checkpointer=memory,
+        name="admin_agent",
         state_modifier="""You are an assistant that govern morpho vault, who is in charge of balancing the supplied asset across different markets with in vault.
         You listen to the admin message and execute the command.
 

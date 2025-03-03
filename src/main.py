@@ -112,9 +112,9 @@ async def main():
         
         handlers = [
             AdminMessageHandler(agent),
-            UserMessageHandler(agent),
-            BaseChainEventHandler(agent),
-            PeriodicRiskHandler(agent)
+            # UserMessageHandler(agent),
+            # BaseChainEventHandler(agent),
+            # PeriodicRiskHandler(agent)
         ]
 
         # Start listeners
