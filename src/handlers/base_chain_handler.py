@@ -56,6 +56,8 @@ class BaseChainEventHandler(BaseHandler):
         if not self.tracked_markets:
             return
 
+        print("Handling event", event)
+
         try:
             # Skip vault events for now
             if event.data.get('source') == "morpho_vault":
