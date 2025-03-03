@@ -11,6 +11,14 @@ from utils.websocket import WebSocketManager
 import logging
 
 logger = logging.getLogger(__name__)
+# Configure root logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+httpx_logger = logging.getLogger("httpx")
+httpx_logger.setLevel(logging.WARNING)  # Only WARNING and above will show
 
 async def healthcheck(request):
     """Simple healthcheck endpoint"""

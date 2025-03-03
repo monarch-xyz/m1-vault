@@ -176,7 +176,7 @@ class MorphoBlueProcessor(BaseEventProcessor):
     
     async def process_blocks(self, from_block: int, to_block: int):
         # Get all relevant events in one batch
-        print(f"MorphoBlue: Processing blocks {from_block} to {to_block}")
+        logger.info(f"MorphoBlue: Processing blocks {from_block} to {to_block}")
 
         event_filter = self.web3.eth.filter({
             "address": MORPHO_BLUE_ADDRESS,
@@ -209,8 +209,6 @@ class MorphoBlueProcessor(BaseEventProcessor):
                     timestamp=time.time()
                 )
 
-                print("Publishing event", event)
-
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
                 logger.error("MorphoBlue", str(e))
@@ -242,7 +240,7 @@ class MorphoVaultProcessor(BaseEventProcessor):
         super().__init__(contract, event_bus, web3, polling_interval)
     
     async def process_blocks(self, from_block: int, to_block: int):
-        print(f"MorphoVault: Processing blocks {from_block} to {to_block}")
+        logger.info(f"MorphoVault: Processing blocks {from_block} to {to_block}")
         deposit_events = self.contract.events.Deposit().get_logs(from_block=from_block, to_block=to_block)
         
         for log in deposit_events:
@@ -257,7 +255,7 @@ class MorphoVaultProcessor(BaseEventProcessor):
                 )
                 await self.event_bus.publish(EventType.CHAIN_EVENT, event)
             except Exception as e:
-                print(f"[MorphoVault] Event process error: {str(e)}")
+                logger.error(f"[MorphoVault] Event process error: {str(e)}")
 
             # Parse attached bytes as user message
             try:
