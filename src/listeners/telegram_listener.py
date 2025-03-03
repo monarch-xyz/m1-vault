@@ -5,7 +5,9 @@ from telegram.ext import Application, MessageHandler, filters
 import os
 import time
 from models.messages import TelegramMessage
+import logging
 
+logger = logging.getLogger(__name__)
 
 class TelegramListener(Listener):
     def __init__(self, event_bus):
@@ -15,7 +17,7 @@ class TelegramListener(Listener):
 
     async def start(self):
         """Initialize and start the Telegram bot"""
-        print("Starting telegram listener...")
+        logger.info("Starting telegram listener...")
         if not self.bot_token:
             raise ValueError("TELEGRAM_BOT_TOKEN environment variable not set")
             

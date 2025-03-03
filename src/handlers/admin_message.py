@@ -6,6 +6,9 @@ from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 from utils.supabase import SupabaseClient
 from utils.activity_types import MESSAGE_RECEIVED, MESSAGE_RESPONDING, IDLE
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AdminMessageHandler(BaseHandler):
     """ Entry point to handle admin messages (from telegram for now) """
@@ -14,7 +17,7 @@ class AdminMessageHandler(BaseHandler):
         super().__init__(agent)
         self.llm = create_admin_agent(agent)
 
-        print(f"AdminMessageHandler initialized")
+        logger.info("AdminMessageHandler initialized")
 
     @property
     def subscribes_to(self):
