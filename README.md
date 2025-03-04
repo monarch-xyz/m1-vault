@@ -1,6 +1,6 @@
-# Wowo Agent 
+# M1 Agent 
 
-Wowo Agent is an autonomous agent designed to manage Morpho Protocol vaults through a combination of on-chain monitoring, user interactions, and admin controls. The agent serves as a reallocator in the Morpho Vault, helping to optimize vault strategies and manage positions.
+M1 Agent is an autonomous agent designed to manage Morpho Protocol vaults through a combination of on-chain monitoring, user interactions, and admin controls. The agent serves as a reallocator in the Morpho Vault, helping to optimize vault strategies and manage positions.
 
 ## Core Capabilities
 
