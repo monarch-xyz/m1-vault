@@ -20,7 +20,6 @@ def create_risk_agent(agent):
     market_analysis = create_reasoning_tool(agent)
     
     tools = [
-        get_reallocation_tool(),
         *cdp_tools,
         *market_tools,  # Use tools with broadcasting capability
         market_analysis
