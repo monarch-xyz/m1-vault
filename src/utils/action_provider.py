@@ -11,7 +11,7 @@ from coinbase_agentkit.action_providers.action_provider import ActionProvider
 from coinbase_agentkit.network import Network
 from coinbase_agentkit.wallet_providers import EvmWalletProvider
 from pydantic import BaseModel, Field
-
+from utils.market_api import MorphoAPIClient
 SUPPORTED_NETWORKS = ["base-mainnet", "base-sepolia"]
 VAULT_ADDRESS = "0x346AAC1E83239dB6a6cb760e95E13258AD3d1A6d"
 
@@ -37,7 +37,7 @@ def encode_reallocation(allocations):
         market_params = allocation['marketParams']
         encoded_allocation = [
             Web3.to_checksum_address(market_params['loanToken']),
-            Web3.to_checksum_address(market_params['collateral_token']),
+            Web3.to_checksum_address(market_params['collateralToken']),
             Web3.to_checksum_address(market_params['oracle']),
             Web3.to_checksum_address(market_params['irm']),
             int(market_params['lltv']),
@@ -85,8 +85,8 @@ new_allocations: [200000000, 150000000, 150000000]
             allocations = []
 
             # Get market parameters from API
-            market_params = get_market_params_sync(args["market_ids"])
-            
+            market_params = MorphoAPIClient.get_market_params_sync(args["market_ids"])
+
             for market_param, new_allocation in zip(market_params, args["new_allocations"]):
                 allocations.append({
                     'marketParams': {
@@ -105,7 +105,7 @@ new_allocations: [200000000, 150000000, 150000000]
             # Send via multicall
             params = {
                 "to": VAULT_ADDRESS,
-                "data": calldata.hex(),
+                "data": '0x' + calldata.hex(),
             }
 
             tx_hash = wallet_provider.send_transaction(params)

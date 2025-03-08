@@ -3,7 +3,6 @@ import os
 from coinbase_agentkit import (
     AgentKit,
     AgentKitConfig,
-    cdp_api_action_provider,
     pyth_action_provider,
     CdpWalletProvider,
     CdpWalletProviderConfig
@@ -20,7 +19,6 @@ wallet_provider = CdpWalletProvider(CdpWalletProviderConfig(
 agent_kit = AgentKit(AgentKitConfig(
     wallet_provider=wallet_provider,
     action_providers=[
-        cdp_api_action_provider(),
         morpho_action_provider()
     ]
 ))
@@ -29,4 +27,3 @@ cdp_tools = get_langchain_tools(agent_kit)
 
 read_only_tools = [tool for tool in cdp_tools if "get_shares" in tool.name]
 
-print(read_only_tools)
