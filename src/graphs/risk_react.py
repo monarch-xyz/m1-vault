@@ -39,6 +39,8 @@ def create_risk_agent(agent):
 
         You will be periodically given a summary of current vault and market data, and you need to figure out the best reallocation strategy. 
         You should reply like giving an update to the community, be brief and to the point. (not a conversation)
+
+        If the conclusion is that reallocation is needed, you use the reallocation tool to submit a transaction to the vault.
         """.format(VAULT_ADDRESS),
     )
     
