@@ -105,7 +105,7 @@ new_allocations: [200000000, 150000000, 150000000]
             # Send via multicall
             params = {
                 "to": VAULT_ADDRESS,
-                "data": calldata.hex(),
+                "data": '0x' + calldata.hex(),
             }
 
             tx_hash = wallet_provider.send_transaction(params)
