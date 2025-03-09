@@ -4,6 +4,7 @@ langchain-anthropic>=0.3.0
 langchain-openai>=0.2.4
 langgraph>=0.2.65
 langgraph-checkpoint-sqlite>=2.0.0
+langgraph-supervisor>=0.0.4
 python-dotenv>=1.0.0
 python-telegram-bot>=20.7
 faiss-cpu>=1.7.4

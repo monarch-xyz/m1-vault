@@ -2,6 +2,10 @@ from core.agent import Listener
 from models.events import EventType, BaseEvent
 import asyncio
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
 class TimerListener(Listener):
     """Emits periodic events for scheduled tasks"""
     
@@ -19,7 +23,7 @@ class TimerListener(Listener):
         self.tasks.append(
             asyncio.create_task(self._emit_risk_events())
         )
-        print("TimerListener", "Timer-based event emission started")
+        logger.info("Timer-based event emission started")
 
     async def stop(self):
         """Stop all timers"""
@@ -27,7 +31,7 @@ class TimerListener(Listener):
         for task in self.tasks:
             task.cancel()
         self.tasks = []
-        print("TimerListener", "Timer-based event emission stopped")
+        logger.info("Timer-based event emission stopped")
 
     async def _emit_risk_events(self):
         """Emit periodic risk update events"""
