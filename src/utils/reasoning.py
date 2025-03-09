@@ -32,8 +32,6 @@ Output your ideas like when you're thinking out loud. Could be casual tone but o
 Basic Knoledge about Morpho Markets:
 - Markets have an optimal utilization rate of 90%, which is consider "balanced"
 
-Output your ideas like when you're thinking out loud. Could be casual tone but on point, clear and brief about the reasonings.
-
 """
 
 def create_reasoning_tool(agent):
