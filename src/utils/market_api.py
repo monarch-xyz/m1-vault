@@ -176,3 +176,9 @@ class MorphoAPIClient:
                         lltv=market.lltv
                     ))
         return market_params
+
+    @staticmethod
+    def get_market_params_sync(market_ids: list[str]) -> list[MarketParams]:
+        """Synchronous wrapper for get_market_params"""
+        import asyncio
+        return asyncio.run(MorphoAPIClient.get_market_params(market_ids))

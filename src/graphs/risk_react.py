@@ -4,13 +4,11 @@ from langgraph.prebuilt import create_react_agent
 
 from pydantic import BaseModel
 from config import Config
-from utils import get_reallocation_tool
-import json
 from utils.market_tools import create_market_tools
 from utils.reasoning import create_reasoning_tool
 from utils.model_util import get_llm
 from utils.constants import VAULT_ADDRESS
-
+from utils.cdp import cdp_tools
 from langgraph.checkpoint.memory import MemorySaver
 
 # Factory function to create the agent with access to the WebSocket manager
@@ -22,7 +20,7 @@ def create_risk_agent(agent):
     market_analysis = create_reasoning_tool(agent)
     
     tools = [
-        get_reallocation_tool(),
+        *cdp_tools,
         *market_tools,  # Use tools with broadcasting capability
         market_analysis
     ]
