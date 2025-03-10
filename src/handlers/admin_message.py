@@ -60,6 +60,23 @@ class AdminMessageHandler(BaseHandler):
         state = await self.llm.ainvoke({
             "messages": [HumanMessage(content=message.text)]
         }, config={"configurable": {"thread_id": "admin_chat"}})
+
+        # Improved message printing
+        for message in state['messages']:
+            print(f"{message.id}:")
+            
+            # Handle structured content (list with text and tool_use)
+            if isinstance(message.content, list):
+                for item in message.content:
+                    if item['type'] == 'text':
+                        print(f"  [Text] {item['text']}")
+                    elif item['type'] == 'tool_use':
+                        print(f"  [Tool] Using: {item['name']}")
+                        if item['input']:
+                            print(f"  [Tool] Input: {item['input']}")
+            else:
+                # Regular text message
+                print(f"  {message.content}")
         
         return state['messages'][-1].content
 

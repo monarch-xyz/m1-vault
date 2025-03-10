@@ -30,7 +30,7 @@ class WebSocketManager:
     async def _broadcast(self, msg_type: str, data: dict):
         """Internal method to broadcast messages"""
         if not self.connections:
-            logger.info(f"No active connections to broadcast {msg_type} message")
+            logger.debug(f"No active connections to broadcast {msg_type} message")
             return
         
         message = {
