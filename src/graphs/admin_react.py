@@ -48,9 +48,10 @@ def create_admin_agent(agent):
         - fetch_vault_market_status
         - morpho_reallocate
         - market_analysis: Use this tool to have deep and thorough reasoning about market, vaults, or others, make sure to provide data you gather from other tools
-
         - add_long_term_memory: Use it when the admin provide objective insights that would help analyze the market in the future. Do not store temporary data like util rate or market rate.
         - get_long_term_memory: Use it to find potential relevant insight from the long term memory.
+        - account_details: Use it to get the twitter account details.
+        - post_tweet: Use it to post a tweet.
         """.format(VAULT_ADDRESS),
     )
     

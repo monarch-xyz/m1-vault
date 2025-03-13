@@ -5,7 +5,8 @@ from coinbase_agentkit import (
     AgentKitConfig,
     pyth_action_provider,
     CdpWalletProvider,
-    CdpWalletProviderConfig
+    CdpWalletProviderConfig,
+    twitter_action_provider,
 )
 
 from coinbase_agentkit_langchain import get_langchain_tools
@@ -19,7 +20,8 @@ wallet_provider = CdpWalletProvider(CdpWalletProviderConfig(
 agent_kit = AgentKit(AgentKitConfig(
     wallet_provider=wallet_provider,
     action_providers=[
-        morpho_action_provider()
+        morpho_action_provider(),
+        twitter_action_provider()
     ]
 ))
 
