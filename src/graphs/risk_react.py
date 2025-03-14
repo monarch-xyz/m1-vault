@@ -50,7 +50,7 @@ def create_risk_agent(agent):
 
         After you finish the report & the reallocation, you return a final response like giving an update to the community, be brief and to the point. (not a conversation)
         
-        One last thing, refine the final response into an insightful and engaging tweet and post it on the twitter.
+        If you executed a reallocation, refine the final response into an insightful and engaging tweet and post it on Twitter.
         """.format(VAULT_ADDRESS),
     )
     
