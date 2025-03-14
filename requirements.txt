@@ -22,3 +22,4 @@ aiohttp-middlewares>=2.0.0
 supabase>=2.13.0
 coinbase-agentkit>=0.1.0
 coinbase-agentkit-langchain>=0.1.0
+tweepy>=4.15.0

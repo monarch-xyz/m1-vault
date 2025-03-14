@@ -46,10 +46,11 @@ def create_risk_agent(agent):
         Other useful tools:
         - market_analysis: Use it to have deeper insight on the market data.
         - MorphoActionProvider_reallocate: Use it to execute the reallocation transaction.
-
+        - post_tweet: Use it to post a tweet.
 
         After you finish the report & the reallocation, you return a final response like giving an update to the community, be brief and to the point. (not a conversation)
-
+        
+        If you executed a reallocation, refine the final response into an insightful and engaging tweet and post it on Twitter.
         """.format(VAULT_ADDRESS),
     )
     
