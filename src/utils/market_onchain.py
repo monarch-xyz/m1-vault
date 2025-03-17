@@ -4,6 +4,9 @@ from typing import Dict, List, Tuple
 import json
 from pathlib import Path
 from .constants import MORPHO_BLUE_ADDRESS  # Update import
+import logging
+
+logger = logging.getLogger(__name__)
 
 MORPHO_ABI = json.loads(
     (Path(__file__).parent.parent / "abi" / "morpho-blue.json").read_text()
@@ -44,6 +47,7 @@ class MarketReader:
             vault_address = Web3.to_checksum_address(vault_address)
             positions = []
             
+            logger.info("Getting on-chain vault positions for %d markets", len(market_ids))
             for market_id in market_ids:
                 if not market_id.startswith('0x'):
                     market_id = f"0x{market_id}"

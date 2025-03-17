@@ -1,3 +1,5 @@
+import os
+
 from langchain_core.tools import tool
 from typing import List, TypedDict
 from dataclasses import dataclass
@@ -9,6 +11,9 @@ from .constants import VAULT_ADDRESS
 from .market_api import MorphoAPIClient, Market, VaultResponse
 from .market_db import get_market_operations
 from .market_onchain import MarketReader
+
+web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
+market_reader = MarketReader(web3)
 
 @dataclass
 class MarketInfo:
@@ -47,6 +52,8 @@ async def get_vault_markets() -> List[MarketInfo]:
     try:
         vault = await MorphoAPIClient.get_vault_data(VAULT_ADDRESS)
         markets = await get_morpho_markets()
+
+        # Id here is subgraph API id: 0xab8c-01234-01234...
         markets_by_id = {m.id: m for m in markets}
         
         market_infos = []
@@ -85,12 +92,17 @@ async def get_vault_allocations_summary() -> str:
     # Format approved markets
     response.append("\n🟢 Approved Markets (Can reallocate):")
     for market in approved_markets:
+
+        # Get on-chain stats
+        stats = await market_reader.get_market_data(market.uniqueKey)
+
         allocation = next(a for a in vault.state.allocation if a.market["id"] == market.id)
         response.extend([
             f"\n- {market.collateralAsset.symbol}-{market.loanAsset.symbol} ({market.uniqueKey})",
             f"  Current Supply: {allocation.supplyAssets/1e6:,.2f} USDC",
             f"  Supply Cap: {allocation.supplyCap/1e6:,.2f} USDC",
             f"  APY: {market.state.supplyApy * 100:.2f}%"
+            f"  Liquidity: {float(stats['liquidity'])/1e6:,.2f} USDC"
         ])
         
     return "\n".join(response)
@@ -111,15 +123,15 @@ async def format_market_history(market_stats: List[MarketSnapshot]) -> str:
 
     return "\n".join(market_summaries)
 
-async def get_all_market_history(web3: Web3, hours_ago: int = 1) -> List[MarketSnapshot]:
+async def get_all_market_history(hours_ago: int = 1) -> List[MarketSnapshot]:
     """ Get a list of market snapshots with net flows over a period of time"""
-    market_reader = MarketReader(web3)
-    api_client = MorphoAPIClient()
     
     # Get operations from DB
     operations = await get_market_operations(hours_ago)
     if not operations:
         return []
+
+    api_client = MorphoAPIClient()
     
     consolidated_data = []
     for market in operations:
