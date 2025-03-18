@@ -38,7 +38,7 @@ class PeriodicRiskHandler(BaseHandler):
             })
 
             # Get consolidated market data
-            market_summaries = await get_all_market_history(self.web3, self.hours_ago)
+            market_summaries = await get_all_market_history(self.hours_ago)
             
             # Store snapshots
             for market in market_summaries:

@@ -9,6 +9,12 @@ from .constants import (
     GET_MARKETS_QUERY,
     GET_VAULT_QUERY
 )
+from .market_onchain import MarketReader
+from web3 import Web3
+import os
+
+web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
+market_reader = MarketReader(web3)
 
 class MarketParams(BaseModel):
     """Market parameters for Morpho markets."""
@@ -134,8 +140,8 @@ class MorphoAPIClient:
                 return []
 
     @staticmethod
-    async def get_vault_data(vault_id: str) -> VaultResponse:
-        """Get vault data"""
+    async def get_vault_data(vault_id: str, web3: Web3 = None) -> VaultResponse:
+        """Get vault data with on-chain position verification"""
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(
@@ -149,12 +155,30 @@ class MorphoAPIClient:
                     if "errors" in data:
                         raise Exception(f"GraphQL errors: {data['errors']}")
                     
-                    return VaultResponse(**data["data"]["vaultByAddress"])
+                    vault_data = data["data"]["vaultByAddress"]
+                    
+                    # Extract market IDs from API response
+                    market_ids = [alloc["market"]["uniqueKey"] for alloc in vault_data["state"]["allocation"]]
+                    
+                    # Get on-chain positions
+                    
+                    on_chain_positions = await market_reader.get_vault_positions(vault_id, market_ids)
+                    
+                    # Create a mapping of market_id to on-chain position data
+                    position_map = {pos["market_id"]: pos for pos in on_chain_positions}
+                    
+                    # Update allocation with on-chain data
+                    for allocation in vault_data["state"]["allocation"]:
+                        market_id = allocation["market"]["uniqueKey"]
+                        if market_id in position_map:
+                            # Replace API supplyAssets with on-chain data
+                            allocation["supplyAssets"] = position_map[market_id]["supply_assets"]
+                    
+                    return VaultResponse(**vault_data)
                     
             except Exception as e:
                 print(f"Error fetching vault data: {e}")
-                return None 
-
+                return None
 
     @staticmethod
     async def get_market_params(market_ids: list[str]) -> list[MarketParams]:

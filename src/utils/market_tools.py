@@ -76,7 +76,7 @@ def create_market_tools(agent):
                 })
                 
             result = await get_vault_allocations_summary()
-            
+
             # Broadcast with more details
             if agent and agent.ws_manager:
                 # Extract some meaningful data from the result for the broadcast
