@@ -9,7 +9,7 @@ from web3 import Web3
 import os
 from graphs.risk_react import create_risk_agent
 import logging
-
+import uuid
 # Get the standard Python logger
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,8 @@ class PeriodicRiskHandler(BaseHandler):
                 "interval_hours": self.hours_ago,
                 "timestamp": datetime.now().timestamp()
             })
+
+            logger.info("Starting periodic risk analysis ================================")
 
             # Get consolidated market data
             market_summaries = await get_all_market_history(self.hours_ago)
@@ -68,13 +70,17 @@ class PeriodicRiskHandler(BaseHandler):
             
     async def analyze_risk(self, market_data):
         """Analyze market risk using LLM"""
+
+        activity_id = str(uuid.uuid4())
+
         # Format data for LLM consumption
         market_history_summary = await format_market_history(market_data)
         
         vault_allocation_summary = await get_vault_allocations_summary()
 
         prompt = f"""
-        [Automated Trigger Message]
+        [Automated Trigger Message] 
+        activity_id: {activity_id}
         Here is the market activity in the last {self.hours_ago} hours:
         {market_history_summary}
 
@@ -88,6 +94,6 @@ class PeriodicRiskHandler(BaseHandler):
 
         # for all messages in state[messages], find things we want to print
         content = state['messages'][-1].content
-        await SupabaseClient.store_report("hourly",content)
+        await SupabaseClient.store_report("hourly", content, activity_id)
 
         return content
