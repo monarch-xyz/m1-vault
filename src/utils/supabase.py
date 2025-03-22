@@ -37,12 +37,13 @@ class SupabaseClient:
             raise
 
     @classmethod
-    async def _store_memory_table(cls, memory_type: str, sub_type: str, text: str):
+    async def _store_memory_table(cls, memory_type: str, sub_type: str, text: str, activity_id: str):
         """Base method to store data in the memories table, most information is stored here"""
         data = {
             "type": memory_type,
             "sub_type": sub_type,
-            "text": text
+            "text": text,
+            "activity_id": activity_id
         }
         return await cls._store_data('memories', data, f"memory ({memory_type})")
 
@@ -62,19 +63,15 @@ class SupabaseClient:
         return await cls._store_data('market-snapshots', data, "market snapshot")
 
     @classmethod
-    async def store_thought(cls, sub_type: str, text: str):
+    async def store_thought(cls, sub_type: str, text: str, activity_id: str):
         """Store thought in memories"""
-        return await cls._store_memory_table("think", sub_type, text)
+        return await cls._store_memory_table("think", sub_type, text, activity_id)
 
     @classmethod
-    async def store_report(cls, sub_type: str, text: str):
+    async def store_report(cls, sub_type: str, text: str, activity_id: str):
         """Store report in memories"""
-        return await cls._store_memory_table("report", sub_type, text)
+        return await cls._store_memory_table("report", sub_type, text, activity_id)
 
-    @classmethod
-    async def store_action(cls, sub_type: str, text: str):
-        """Store action in memories"""
-        return await cls._store_memory_table("action", sub_type, text)
 
     @classmethod
     async def get_filtered_market_events(cls, hours_ago: int = 1):
