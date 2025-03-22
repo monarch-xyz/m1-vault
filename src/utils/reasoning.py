@@ -29,8 +29,9 @@ For example:
 
 
 IMPORTANT: Make sure your decision based on the data and constraints. Specifically: 
-- [Liquidity Constraint]: If market A only has $1K liquidity, our current allocation is $5000, the max we can withdraw and move to another market is $1K. (resulting in new allocation of $4000 in Market A)
-- [Cap Constraint]: if market B has 5K existing allocation, and the cap is 6K, the max we can move in is $1K. (resulting in new allocation of 6K in Market B)
+- [Liquidity Constraint]: 
+    The max we can withdraw and move is bounded by the liquidity of the market.
+    Example: If market A only has $1K liquidity, our current allocation is $5000, the max we can withdraw and move to another market is $1K.
 
 Output your ideas like when you're thinking out loud. Could be casual tone but on point, clear and brief about the reasonings.
 
@@ -57,7 +58,7 @@ def create_reasoning_tool(agent):
 
         Args:
             reasoning_prompt: The prompt to reason about
-            market_or_vault_data: The data you gather from other tools
+            market_or_vault_data: The data you gather from other tools, including market apys, volumn changes and current liquidity.
         """
 
         # Broadcast that we're starting reasoning with more details
