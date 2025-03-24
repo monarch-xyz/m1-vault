@@ -40,7 +40,11 @@ def create_risk_agent(agent):
         - Diversifying the associated collaterals for each market
         - Predicting interest rate change in the next hour
         - Balance risk and yield.
-
+        
+        - Act based on current constraints: 
+            - [Liquidity Constraint]: If market A only has $1K liquidity, our current allocation is $5000, the max we can withdraw and move to another market is $1K. (resulting in new allocation of $4000 in Market A)
+            - If allocation fails due to insufficient liquidity, it's caused by the above constraint. You need to adjust the "new allocation" array to put more asset in the original market.
+        
         Most importnatly, you need to use the MorphoActionProvider_reallocate tool to execute the transaction after you determine the best strategy.
 
         Other useful tools:

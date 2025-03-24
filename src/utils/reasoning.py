@@ -27,6 +27,12 @@ For example:
 - When the interest rate of a market is low, you should check if it's caused by low utilization rate, and consider moving asset elsewhere to get higher APY.
 - When a new perpective is provided, you should consider that with the current vault status
 
+
+IMPORTANT: Make sure your decision based on the data and constraints. Specifically: 
+- [Liquidity Constraint]: 
+    The max we can withdraw and move is bounded by the liquidity of the market.
+    Example: If market A only has $1K liquidity, our current allocation is $5000, the max we can withdraw and move to another market is $1K.
+
 Output your ideas like when you're thinking out loud. Could be casual tone but on point, clear and brief about the reasonings.
 
 Basic Knoledge about Morpho Markets:
@@ -38,17 +44,21 @@ def create_reasoning_tool(agent):
     """Create reasoning tool with agent access for broadcasting"""
     
     @tool
-    async def market_analysis(reasoning_prompt: str, market_or_vault_data: str):
+    async def market_analysis(reasoning_prompt: str, market_or_vault_data: str, activity_id: str):
         """
         Giving the data and current stats, conduct a thorough reasoing about the prompt related to market analysis.
-        Make sure to use this tool with other tools to gather data.
+        
+        Make sure to use this tool with other tools to gather data, and you need to pass in important constraints to make sure your decision is based on the data and constraints.
 
         For example:
         - Given the 35% rate of USDC-ezETH market, with low liquidity and high utilization rate (99%), is it a good idea to reallocate the asset to the market?
+        - Data Example: 
+            - USDC-cbETH market has 35% rate, low liquidity ($1000) and high utilization rate (99%)
+            - Our current allocation is $5000, the max we can withdraw and move to another market is $1K
 
         Args:
             reasoning_prompt: The prompt to reason about
-            market_or_vault_data: The data you gather from other tools
+            market_or_vault_data: The data you gather from other tools, including market apys, volumn changes and current liquidity.
         """
 
         # Broadcast that we're starting reasoning with more details
@@ -72,7 +82,7 @@ def create_reasoning_tool(agent):
 
         reasoning = response.content
 
-        await SupabaseClient.store_thought("analysis", reasoning)
+        await SupabaseClient.store_thought("analysis", reasoning, activity_id)
 
         # Broadcast that we've completed reasoning with the actual content
         if agent and agent.ws_manager:

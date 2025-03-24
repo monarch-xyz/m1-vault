@@ -99,6 +99,11 @@ new_allocations: [200000000, 150000000, 150000000]
                     'assets': 2**256 - 1 if market_param == market_params[-1] else new_allocation
                 })
 
+            # print allocations nicely: print the new allocations
+            print("New allocations:")
+            for market_id, allocation in zip(args["market_ids"], allocations):
+                print(f"Market: {market_id}, Assets: {allocation['assets']}")
+
             # Encode reallocation call
             calldata = encode_reallocation(allocations)
             
