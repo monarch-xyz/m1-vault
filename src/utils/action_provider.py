@@ -115,13 +115,14 @@ new_allocations: [200000000, 150000000, 150000000]
             tx_hash = wallet_provider.send_transaction(params)
             wallet_provider.wait_for_transaction_receipt(tx_hash)
 
-            return f"Successfully reallocated USDC in Morpho Vault with transaction hash: {tx_hash}"
+            # return the tx hash if success
+            return tx_hash
 
         except Exception as e:
             if hasattr(e, 'api_message'):
-                return e.api_message
+                return 'Reallocation failed: ' + e.api_message
             else:
-                return str(e)
+                return 'Reallocation failed: ' + str(e)
 
     @create_action(
         name="get_shares",

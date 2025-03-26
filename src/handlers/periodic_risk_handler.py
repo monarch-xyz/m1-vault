@@ -92,8 +92,14 @@ class PeriodicRiskHandler(BaseHandler):
             "messages": [HumanMessage(content=prompt)]
         }, config={"configurable": {"thread_id": "risk_analysis"}})
 
+        # Store full message history
+        await SupabaseClient.store_activity(activity_id, state['messages'])
+
         # for all messages in state[messages], find things we want to print
         content = state['messages'][-1].content
+
         await SupabaseClient.store_report("hourly", content, activity_id)
+
+        
 
         return content
