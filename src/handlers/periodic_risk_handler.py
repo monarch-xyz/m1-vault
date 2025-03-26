@@ -93,7 +93,7 @@ class PeriodicRiskHandler(BaseHandler):
         }, config={"configurable": {"thread_id": "risk_analysis"}})
 
         # Store full message history
-        await SupabaseClient.store_activity(activity_id, state['messages'])
+        await SupabaseClient.store_activity(activity_id, state['messages'], "PERIODIC_CHECK")
 
         # for all messages in state[messages], find things we want to print
         content = state['messages'][-1].content

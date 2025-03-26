@@ -73,7 +73,7 @@ class SupabaseClient:
         return await cls._store_memory_table("report", sub_type, text, activity_id)
 
     @classmethod
-    async def store_activity(cls, activity_id: str, full_history: list):
+    async def store_activity(cls, activity_id: str, full_history: list, trigger: str):
         """Store activity with full message history"""
         # Convert messages to serializable format
         serializable_history = []
@@ -86,7 +86,8 @@ class SupabaseClient:
             
         data = {
             "id": activity_id,
-            "full_history": serializable_history
+            "full_history": serializable_history,
+            "trigger": trigger
         }
         return await cls._store_data('activities', data, "activity")
 
