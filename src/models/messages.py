@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 import time
-from typing import Optional
 
 class BaseMessage(BaseModel):
     text: str

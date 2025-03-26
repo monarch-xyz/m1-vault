@@ -46,7 +46,6 @@ class UserMessageHandler(BaseHandler):
 
                 # pass in a more detailed message to the agent, to access sender 
                 message_text = "TEXT: {text} \n======\n USER_ID: {sender}".format(text=event.data.text, sender=event.data.sender)
-                chat_id = event.data.sender
 
             else:
                 print("Unknown message type!!!")

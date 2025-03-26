@@ -3,7 +3,6 @@ import os
 from coinbase_agentkit import (
     AgentKit,
     AgentKitConfig,
-    pyth_action_provider,
     CdpWalletProvider,
     CdpWalletProviderConfig,
     twitter_action_provider,

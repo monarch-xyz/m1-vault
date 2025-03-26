@@ -1,10 +1,7 @@
 import os
 
-from langchain_core.tools import tool
 from typing import List, TypedDict
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from collections import defaultdict
 from web3 import Web3
 
 from .constants import VAULT_ADDRESS

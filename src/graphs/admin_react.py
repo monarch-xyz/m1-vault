@@ -1,10 +1,6 @@
 from typing import TypedDict, Literal, Annotated, Sequence
-from langgraph.graph.message import add_messages
 from langgraph.prebuilt import create_react_agent
-
-from pydantic import BaseModel
 from config import Config
-import json
 from utils.market_tools import create_market_tools
 from utils.memory import add_long_term_memory, get_long_term_memory
 from utils.reasoning import create_reasoning_tool

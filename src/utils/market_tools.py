@@ -1,9 +1,6 @@
 """ Tools for LangGraph """
 
 from langchain_core.tools import tool
-from typing import List, Optional
-from dataclasses import dataclass
-from .market_api import MorphoAPIClient, Market, VaultResponse
 from .market import get_morpho_markets, get_vault_allocations_summary
 from utils.activity_types import MARKET_DATA_FETCHED, VAULT_DATA_FETCHED
 import time

@@ -5,7 +5,7 @@ from graphs.admin_react import create_admin_agent
 from langchain_core.messages import HumanMessage
 from utils import send_telegram_message_async
 from utils.supabase import SupabaseClient
-from utils.activity_types import MESSAGE_RECEIVED, MESSAGE_RESPONDING, IDLE
+from utils.activity_types import MESSAGE_RECEIVED, IDLE
 import logging
 
 logger = logging.getLogger(__name__)

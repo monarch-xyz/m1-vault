@@ -1,7 +1,6 @@
 # For Supabase database operations
-from datetime import datetime, timezone
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict
 
 from .supabase import SupabaseClient
 
