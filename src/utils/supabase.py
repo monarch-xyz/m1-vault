@@ -72,6 +72,24 @@ class SupabaseClient:
         """Store report in memories"""
         return await cls._store_memory_table("report", sub_type, text, activity_id)
 
+    @classmethod
+    async def store_activity(cls, activity_id: str, full_history: list, trigger: str):
+        """Store activity with full message history"""
+        # Convert messages to serializable format
+        serializable_history = []
+        for message in full_history:
+            serializable_history.append({
+                "type": message.__class__.__name__,
+                "content": message.content,
+                "additional_kwargs": message.additional_kwargs
+            })
+            
+        data = {
+            "id": activity_id,
+            "full_history": serializable_history,
+            "trigger": trigger
+        }
+        return await cls._store_data('activities', data, "activity")
 
     @classmethod
     async def get_filtered_market_events(cls, hours_ago: int = 1):
