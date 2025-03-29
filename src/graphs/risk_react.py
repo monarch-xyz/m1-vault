@@ -37,9 +37,9 @@ def create_risk_agent(agent):
         
         You will be periodically given a summary of current vault and underlying market data, and finally determine the best reallocation strategy (if any). 
         The reallocation strategy should consider the following:
-        - Diversifying the associated collaterals for each market
         - Predicting interest rate change in the next hour
         - Balance risk and yield.
+            - You Must not all-in one market. The biggest market cannot be more than 70% of the total assets
         
         - Act based on current constraints: 
             - [Liquidity Constraint]: If market A only has $1K liquidity, our current allocation is $5000, the max we can withdraw and move to another market is $1K. (resulting in new allocation of $4000 in Market A)
