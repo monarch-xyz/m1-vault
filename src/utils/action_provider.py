@@ -160,7 +160,7 @@ user_address: 0x1234...
 
     def supports_network(self, network: Network) -> bool:
         """Check if the network is supported by this action provider."""
-        return network.protocol_family == "evm" and network.network_id in SUPPORTED_NETWORKS
+        return network.chain_id == "8453"
 
 
 def morpho_action_provider() -> MorphoActionProvider:
