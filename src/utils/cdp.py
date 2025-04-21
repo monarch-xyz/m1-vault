@@ -10,6 +10,8 @@ from coinbase_agentkit import (
 
 from eth_account import Account
 
+from config import Config
+
 Account.enable_unaudited_hdwallet_features()
 
 account = Account.from_mnemonic(os.getenv("MNEMONIC_PHRASE"))
@@ -18,7 +20,7 @@ wallet_provider = EthAccountWalletProvider(
     config=EthAccountWalletProviderConfig(
         account=account,
         chain_id="8453",
-        rpc_url=os.getenv("RPC_URL")
+        rpc_url=Config.CHAIN_RPC_URL
     )
 )
 
