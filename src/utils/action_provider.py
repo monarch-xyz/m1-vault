@@ -2,7 +2,7 @@
 
 import os
 import json
-from typing import Any
+from typing import Any, List
 from web3 import Web3
 from eth_abi import encode
 from pathlib import Path
@@ -13,7 +13,10 @@ from coinbase_agentkit.wallet_providers import EvmWalletProvider
 from pydantic import BaseModel, Field
 from utils.market_api import MorphoAPIClient
 from utils.market_onchain import MarketReader
+from utils.market_api import MarketParams
+
 VAULT_ADDRESS = "0x346AAC1E83239dB6a6cb760e95E13258AD3d1A6d"
+MAX_UINT256 = 2**256 - 1
 
 web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
 market_reader = MarketReader(web3)
@@ -41,20 +44,25 @@ class MorphoSharesInput(BaseModel):
     """Input schema for Morpho Vault shares action."""
     user_address: str = Field(..., description="The address of the user to get shares for")
 
-def encode_reallocation(allocations):
+# Define data structures for clarity and type safety
+class Allocation(BaseModel):
+    marketParams: MarketParams
+    assets: int
+
+def encode_reallocation(allocations: List[Allocation]):
     """Encode reallocate function call manually"""
     function_selector = Web3.to_bytes(hexstr="0x7299aa31") # 
     
     encoded_allocations = []
     for allocation in allocations:
-        market_params = allocation['marketParams']
+        market_params = allocation.marketParams # Use attribute access
         encoded_allocation = [
-            Web3.to_checksum_address(market_params['loanToken']),
-            Web3.to_checksum_address(market_params['collateralToken']),
-            Web3.to_checksum_address(market_params['oracle']),
-            Web3.to_checksum_address(market_params['irm']),
-            int(market_params['lltv']),
-            int(allocation['assets'])
+            Web3.to_checksum_address(market_params.loan_token), # Use attribute access
+            Web3.to_checksum_address(market_params.collateral_token), # Use attribute access
+            Web3.to_checksum_address(market_params.oracle), # Use attribute access
+            Web3.to_checksum_address(market_params.irm), # Use attribute access
+            int(market_params.lltv), # Access attribute, ensure it's int
+            int(allocation.assets) # Access attribute, ensure it's int
         ]
         encoded_allocations.append(encoded_allocation)
 
@@ -99,9 +107,7 @@ reallocations: [
         """Reallocate assets across different markets."""
         try:
             # Format allocations
-            allocations = []
-
-            print("args", args)
+            allocations_for_encoding: List[Allocation] = []
 
             # Get all market ids in the reallocations
             market_ids = []
@@ -119,20 +125,16 @@ reallocations: [
 
             market_delta: dict[str, int] = {}
 
-            print("get vault postiions success")
-            
             # Go through each reallocation, calculate the net change of assets
             for reallocation in args["reallocations"]:
                 market_delta[reallocation.from_market_id] = market_delta.get(reallocation.from_market_id, 0) - reallocation.amount
                 market_delta[reallocation.to_market_id] = market_delta.get(reallocation.to_market_id, 0) + reallocation.amount
 
             # sort market_delta, to have negative first (withdrawals first)
-            market_delta = dict(sorted(market_delta.items(), key=lambda x: x[1], reverse=True))
-
-            print("market_delta", market_delta)
+            market_delta = dict(sorted(market_delta.items(), key=lambda x: x[1]))
 
             # Build new allocations
-            allocations = []
+            allocations_for_encoding = []
 
             # For each delta, get the market id, current liquidity, delta, and calculate the new allocation
             for market_id, delta in market_delta.items():
@@ -153,13 +155,19 @@ reallocations: [
                 
                 current_liquidity = position.supplyAssets if position else 0
                 new_allocation = current_liquidity + delta
-                allocations.append({
-                    "marketParams": market_param,
-                    "assets": new_allocation
-                })
+
+                allocations_for_encoding.append(Allocation(
+                    marketParams=market_param,
+                    assets=new_allocation
+                ))
+
+            # If the last operation processed was a supply, set its amount to MAX_UINT256
+            if allocations_for_encoding and market_id:
+                print(f"Setting assets to MAX_UINT256 for last withdrawal market: {market_id}")
+                allocations_for_encoding[-1].assets = MAX_UINT256
 
             # Encode reallocation call
-            calldata = encode_reallocation(allocations)
+            calldata = encode_reallocation(allocations_for_encoding)
             
             # Send via multicall
             params = {
