@@ -109,9 +109,20 @@ reallocations: [
             # Format allocations
             allocations_for_encoding: List[Allocation] = []
 
+            # Get reallocations and format ids
+            reallocations = args["reallocations"]
+            for reallocation in reallocations:
+                # Ensure market IDs have '0x' prefix
+                if not reallocation.from_market_id.startswith("0x"):
+                    reallocation.from_market_id = "0x" + reallocation.from_market_id
+                if not reallocation.to_market_id.startswith("0x"):
+                    reallocation.to_market_id = "0x" + reallocation.to_market_id
+
+            print("reallocations", reallocations)
+
             # Get all market ids in the reallocations
             market_ids = []
-            for reallocation in args["reallocations"]:
+            for reallocation in reallocations:
                 if reallocation.from_market_id not in market_ids:
                     market_ids.append(reallocation.from_market_id)
                 if reallocation.to_market_id not in market_ids:
@@ -126,7 +137,7 @@ reallocations: [
             market_delta: dict[str, int] = {}
 
             # Go through each reallocation, calculate the net change of assets
-            for reallocation in args["reallocations"]:
+            for reallocation in reallocations:
                 market_delta[reallocation.from_market_id] = market_delta.get(reallocation.from_market_id, 0) - reallocation.amount
                 market_delta[reallocation.to_market_id] = market_delta.get(reallocation.to_market_id, 0) + reallocation.amount
 
@@ -163,11 +174,13 @@ reallocations: [
 
             # If the last operation processed was a supply, set its amount to MAX_UINT256
             if allocations_for_encoding and market_id:
-                print(f"Setting assets to MAX_UINT256 for last withdrawal market: {market_id}")
+                print(f"Setting assets to MAX_UINT256 for last supply market: {market_id}")
                 allocations_for_encoding[-1].assets = MAX_UINT256
 
             # Encode reallocation call
             calldata = encode_reallocation(allocations_for_encoding)
+
+            print("calldata", calldata.hex())
             
             # Send via multicall
             params = {
@@ -178,6 +191,7 @@ reallocations: [
             tx_hash = wallet_provider.send_transaction(params)
             wallet_provider.wait_for_transaction_receipt(tx_hash)
 
+            
             # return the tx hash if success
             return tx_hash
 
