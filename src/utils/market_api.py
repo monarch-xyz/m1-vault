@@ -12,6 +12,7 @@ from .constants import (
 from .market_onchain import MarketReader
 from web3 import Web3
 import os
+import asyncio
 
 web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
 market_reader = MarketReader(web3)
@@ -140,7 +141,7 @@ class MorphoAPIClient:
                 return []
 
     @staticmethod
-    async def get_vault_data(vault_id: str, web3: Web3 = None) -> VaultResponse:
+    async def get_vault_data(vault_id: str) -> VaultResponse:
         """Get vault data with on-chain position verification"""
         async with aiohttp.ClientSession() as session:
             try:
@@ -181,10 +182,10 @@ class MorphoAPIClient:
                 return None
 
     @staticmethod
-    async def get_market_params(market_ids: list[str]) -> list[MarketParams]:
+    async def get_market_params(market_ids: list[str]) -> dict[str, MarketParams]:
         markets = await MorphoAPIClient.get_all_markets()
         
-        market_params = []
+        market_params = {}
 
         # for each market_id, find the market in the list of markets
         for market_id in market_ids:
@@ -192,17 +193,22 @@ class MorphoAPIClient:
                 market_id = "0x" + market_id
             for market in markets:
                 if market.uniqueKey == market_id:
-                    market_params.append(MarketParams(
+                    market_params[market_id] = MarketParams(
                         loan_token=market.loanAsset.address,
                         collateral_token=market.collateralAsset.address,
                         oracle=market.oracleAddress,
                         irm=market.irmAddress,
                         lltv=market.lltv
-                    ))
+                    )
         return market_params
 
     @staticmethod
-    def get_market_params_sync(market_ids: list[str]) -> list[MarketParams]:
+    def get_market_params_sync(market_ids: list[str]) -> dict[str, MarketParams]:
         """Synchronous wrapper for get_market_params"""
-        import asyncio
         return asyncio.run(MorphoAPIClient.get_market_params(market_ids))
+    
+
+    @staticmethod
+    def get_vault_data_sync(vault_id: str) -> VaultResponse:
+        """Synchronous wrapper for get_vault_data"""
+        return asyncio.run(MorphoAPIClient.get_vault_data(vault_id))
