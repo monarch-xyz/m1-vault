@@ -1,46 +1,68 @@
 """Morpho Vault action provider."""
 
-from typing import Any
+import os
+import json
+from typing import Any, List
 from web3 import Web3
 from eth_abi import encode
 from pathlib import Path
-import json
 from coinbase_agentkit.action_providers.action_decorator import create_action
 from coinbase_agentkit.action_providers.action_provider import ActionProvider
 from coinbase_agentkit.network import Network
 from coinbase_agentkit.wallet_providers import EvmWalletProvider
 from pydantic import BaseModel, Field
 from utils.market_api import MorphoAPIClient
-SUPPORTED_NETWORKS = ["base-mainnet", "base-sepolia"]
+from utils.market_onchain import MarketReader
+from utils.market_api import MarketParams
+
 VAULT_ADDRESS = "0x346AAC1E83239dB6a6cb760e95E13258AD3d1A6d"
+MAX_UINT256 = 2**256 - 1
+
+web3 = Web3(Web3.HTTPProvider(os.getenv("RPC_URL")))
+market_reader = MarketReader(web3)
 
 # import ABI from src/abi/morpho-vault.json
 with open(Path(__file__).parent.parent / "abi" / "morpho-vault.json") as f:
     METAMORPHO_ABI = json.load(f)
 
+class MorphoAssetMovement(BaseModel):
+    """Input schema for Morpho Vault asset movement."""
+    from_market_id: str = Field(..., description="The ID of the market to move assets from")
+    to_market_id: str = Field(..., description="The ID of the market to move assets to")
+    amount: int = Field(..., description="The amount of assets to move")
+
 class MorphoReallocateInput(BaseModel):
     """Input schema for Morpho Vault reallocate action."""
-    market_ids: list[str] = Field(..., description="The IDs of the markets to reallocate assets. From market first, then to markets.")
-    new_allocations: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as market_ids)")
+    reallocations: list[MorphoAssetMovement] = Field(..., description="The list of asset movements to perform")
+
+# class MorphoReallocateInput(BaseModel):
+#     """Input schema for Morpho Vault reallocate action."""
+#     market_ids: list[str] = Field(..., description="The IDs of the markets to reallocate assets. From market first, then to markets.")
+#     new_allocations: list[int] = Field(..., description="The exact amount of assets with decimal to allocate to each market (in the same order as market_ids)")
 
 class MorphoSharesInput(BaseModel):
     """Input schema for Morpho Vault shares action."""
     user_address: str = Field(..., description="The address of the user to get shares for")
 
-def encode_reallocation(allocations):
+# Define data structures for clarity and type safety
+class Allocation(BaseModel):
+    marketParams: MarketParams
+    assets: int
+
+def encode_reallocation(allocations: List[Allocation]):
     """Encode reallocate function call manually"""
-    function_selector = Web3.to_bytes(hexstr="0x7299aa31")
+    function_selector = Web3.to_bytes(hexstr="0x7299aa31") # 
     
     encoded_allocations = []
     for allocation in allocations:
-        market_params = allocation['marketParams']
+        market_params = allocation.marketParams # Use attribute access
         encoded_allocation = [
-            Web3.to_checksum_address(market_params['loanToken']),
-            Web3.to_checksum_address(market_params['collateralToken']),
-            Web3.to_checksum_address(market_params['oracle']),
-            Web3.to_checksum_address(market_params['irm']),
-            int(market_params['lltv']),
-            int(allocation['assets'])
+            Web3.to_checksum_address(market_params.loan_token), # Use attribute access
+            Web3.to_checksum_address(market_params.collateral_token), # Use attribute access
+            Web3.to_checksum_address(market_params.oracle), # Use attribute access
+            Web3.to_checksum_address(market_params.irm), # Use attribute access
+            int(market_params.lltv), # Access attribute, ensure it's int
+            int(allocation.assets) # Access attribute, ensure it's int
         ]
         encoded_allocations.append(encoded_allocation)
 
@@ -60,19 +82,23 @@ class MorphoActionProvider(ActionProvider[EvmWalletProvider]):
     @create_action(
         name="reallocate",
         description="""
-This tool reallocate assets to a given allocation for a morpho vault.
+This tool reallocate assets between morpho markets.
 
 Example: 
-We want to move 100 USDC from market A to market B and market C, making the final allocation 200 USDC in market A, 150 USDC in market B, and 150 USDC in market C.
+To move 300 USDC in total, 100 USDC from market A to market B, and 200 USDC from market A to market C, use the following
 
-Parameters:
-```
-market_ids: [
-    "a4e2843486610e6851f4e0a8fcdee819958598c71c7e99b0315904ccf162ddc3", ("market_a") (from)
-    "8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda", ("market_b") (to)
-    "13c42741a359ac4a8aa8287d2be109dcf28344484f91185f9a79bd5a805a55ae", ("market_c") (to)
+reallocations: [
+    {
+        "from_market_id": "{market_a}",
+        "to_market_id": "{market_b}",
+        "amount": 100_000000
+    }, 
+    {
+        "from_market_id": "{market_a}",
+        "to_market_id": "{market_c}",
+        "amount": 200_000000
+    }
 ]
-new_allocations: [200000000, 150000000, 150000000]
 ```
 """,
         schema=MorphoReallocateInput,
@@ -81,30 +107,80 @@ new_allocations: [200000000, 150000000, 150000000]
         """Reallocate assets across different markets."""
         try:
             # Format allocations
-            allocations = []
+            allocations_for_encoding: List[Allocation] = []
 
-            # Get market parameters from API
-            market_params = MorphoAPIClient.get_market_params_sync(args["market_ids"])
+            # Get reallocations and format ids
+            reallocations = args["reallocations"]
+            for reallocation in reallocations:
+                # Ensure market IDs have '0x' prefix
+                if not reallocation.from_market_id.startswith("0x"):
+                    reallocation.from_market_id = "0x" + reallocation.from_market_id
+                if not reallocation.to_market_id.startswith("0x"):
+                    reallocation.to_market_id = "0x" + reallocation.to_market_id
 
-            for market_param, new_allocation in zip(market_params, args["new_allocations"]):
-                allocations.append({
-                    'marketParams': {
-                        'loanToken': market_param.loan_token,
-                        'collateralToken': market_param.collateral_token,
-                        'oracle': market_param.oracle,
-                        'irm': market_param.irm,
-                        'lltv': market_param.lltv,
-                    },
-                    'assets': 2**256 - 1 if market_param == market_params[-1] else new_allocation
-                })
+            print("reallocations", reallocations)
 
-            # print allocations nicely: print the new allocations
-            print("New allocations:")
-            for market_id, allocation in zip(args["market_ids"], allocations):
-                print(f"Market: {market_id}, Assets: {allocation['assets']}")
+            # Get all market ids in the reallocations
+            market_ids = []
+            for reallocation in reallocations:
+                if reallocation.from_market_id not in market_ids:
+                    market_ids.append(reallocation.from_market_id)
+                if reallocation.to_market_id not in market_ids:
+                    market_ids.append(reallocation.to_market_id)
+
+            # Get market parameters from API (mapped to market_ids)
+            market_params = MorphoAPIClient.get_market_params_sync(market_ids)
+
+            # Get all existing positions
+            positions = MorphoAPIClient.get_vault_data_sync(VAULT_ADDRESS)
+
+            market_delta: dict[str, int] = {}
+
+            # Go through each reallocation, calculate the net change of assets
+            for reallocation in reallocations:
+                market_delta[reallocation.from_market_id] = market_delta.get(reallocation.from_market_id, 0) - reallocation.amount
+                market_delta[reallocation.to_market_id] = market_delta.get(reallocation.to_market_id, 0) + reallocation.amount
+
+            # sort market_delta, to have negative first (withdrawals first)
+            market_delta = dict(sorted(market_delta.items(), key=lambda x: x[1]))
+
+            # Build new allocations
+            allocations_for_encoding = []
+
+            # For each delta, get the market id, current liquidity, delta, and calculate the new allocation
+            for market_id, delta in market_delta.items():
+                # find market from the market_params
+                market_param = market_params[market_id]
+
+                if market_param is None:
+                    print(f"Market {market_id} not found in market params --> Error")
+                    continue
+
+                # calculate the new allocation
+                position = next((p for p in positions.state.allocation if p.market["uniqueKey"] == market_id), None)
+
+                if position is None and delta < 0:
+                    print(f"Market {market_id} not found in vault positions, but require withdrawal --> Error")
+                    continue
+
+                
+                current_liquidity = position.supplyAssets if position else 0
+                new_allocation = current_liquidity + delta
+
+                allocations_for_encoding.append(Allocation(
+                    marketParams=market_param,
+                    assets=new_allocation
+                ))
+
+            # If the last operation processed was a supply, set its amount to MAX_UINT256
+            if allocations_for_encoding and market_id:
+                print(f"Setting assets to MAX_UINT256 for last supply market: {market_id}")
+                allocations_for_encoding[-1].assets = MAX_UINT256
 
             # Encode reallocation call
-            calldata = encode_reallocation(allocations)
+            calldata = encode_reallocation(allocations_for_encoding)
+
+            print("calldata", calldata.hex())
             
             # Send via multicall
             params = {
@@ -115,6 +191,7 @@ new_allocations: [200000000, 150000000, 150000000]
             tx_hash = wallet_provider.send_transaction(params)
             wallet_provider.wait_for_transaction_receipt(tx_hash)
 
+            
             # return the tx hash if success
             return tx_hash
 
@@ -160,7 +237,7 @@ user_address: 0x1234...
 
     def supports_network(self, network: Network) -> bool:
         """Check if the network is supported by this action provider."""
-        return network.protocol_family == "evm" and network.network_id in SUPPORTED_NETWORKS
+        return network.chain_id == "8453"
 
 
 def morpho_action_provider() -> MorphoActionProvider:

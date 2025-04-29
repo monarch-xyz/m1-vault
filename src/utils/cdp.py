@@ -3,18 +3,29 @@ import os
 from coinbase_agentkit import (
     AgentKit,
     AgentKitConfig,
-    CdpWalletProvider,
-    CdpWalletProviderConfig,
+    EthAccountWalletProvider,
+    EthAccountWalletProviderConfig,
     twitter_action_provider,
+)
+
+from eth_account import Account
+
+from config import Config
+
+Account.enable_unaudited_hdwallet_features()
+
+account = Account.from_mnemonic(os.getenv("MNEMONIC_PHRASE"))
+
+wallet_provider = EthAccountWalletProvider(
+    config=EthAccountWalletProviderConfig(
+        account=account,
+        chain_id="8453",
+        rpc_url=Config.CHAIN_RPC_URL
+    )
 )
 
 from coinbase_agentkit_langchain import get_langchain_tools
 from .action_provider import morpho_action_provider
-
-wallet_provider = CdpWalletProvider(CdpWalletProviderConfig(
-    mnemonic_phrase=os.getenv("MNEMONIC_PHRASE"),
-    network_id=os.getenv("NETWORK_ID")
-))
 
 agent_kit = AgentKit(AgentKitConfig(
     wallet_provider=wallet_provider,
